@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: core_service
+  datasource:
+    url: jdbc:postgresql://localhost:2221/core_service_db
+    username: postgres
+    password: postgres
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+server:
+  port: 1111

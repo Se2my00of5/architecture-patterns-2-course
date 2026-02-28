@@ -238,7 +238,7 @@ namespace CreditService.Services
             }
             catch
             {
-                return false; // Временно разрешаем для тестирования
+                return false; 
             }
         }
 

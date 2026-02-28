@@ -27,7 +27,7 @@ namespace CreditService.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(new { error = ex.Message });
+                return BadRequest();
             }
         }
 
@@ -69,11 +69,11 @@ namespace CreditService.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { error = ex.Message });
+                return BadRequest();
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { error = "Internal server error" });
+                return StatusCode(500);
             }
         }
 
@@ -124,23 +124,23 @@ namespace CreditService.Controllers
             return Ok(payments);
         }
 
-        // Для тестирования - принудительный запуск ежедневных платежей
-        [HttpPost("process-daily")]
-        public async Task<IActionResult> ProcessDailyPayments()
-        {
-            await _creditService.ProcessDailyPaymentsAsync();
-            return Ok(new { message = "Daily payments processed" });
-        }
+        //// Для тестирования - принудительный запуск ежедневных платежей
+        //[HttpPost("process-daily")]
+        //public async Task<IActionResult> ProcessDailyPayments()
+        //{
+        //    await _creditService.ProcessDailyPaymentsAsync();
+        //    return Ok(new { message = "Daily payments processed" });
+        //}
 
-        // Расчет ежемесячного платежа
-        [HttpGet("calculate-payment")]
-        public async Task<ActionResult<decimal>> CalculateMonthlyPayment(
-            [FromQuery] decimal amount,
-            [FromQuery] decimal interestRate,
-            [FromQuery] int months)
-        {
-            var payment = await _creditService.CalculateMonthlyPaymentAsync(amount, interestRate, months);
-            return Ok(new { monthlyPayment = payment });
-        }
+        //// Расчет ежемесячного платежа
+        //[HttpGet("calculate-payment")]
+        //public async Task<ActionResult<decimal>> CalculateMonthlyPayment(
+        //    [FromQuery] decimal amount,
+        //    [FromQuery] decimal interestRate,
+        //    [FromQuery] int months)
+        //{
+        //    var payment = await _creditService.CalculateMonthlyPaymentAsync(amount, interestRate, months);
+        //    return Ok(new { monthlyPayment = payment });
+        //}
     }
 }

@@ -18,10 +18,10 @@ builder.Services.AddDbContext<CreditDbContext>(options =>
 
 
 
-builder.WebHost.ConfigureKestrel(options =>
-{
-    options.Listen(IPAddress.Loopback, 5205); // http://localhost:5205
-});
+//builder.WebHost.ConfigureKestrel(options =>
+//{
+//    options.Listen(IPAddress.Loopback, 5005); // http://localhost:5005
+//});
 
 
 //builder.Services.AddSwaggerGen(c =>
@@ -71,6 +71,14 @@ builder.Services.AddControllers()
 
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<CreditDbContext>();
+
+    // Создаст БД и таблицы, если их нет
+    dbContext.Database.EnsureCreated();
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

@@ -13,6 +13,8 @@ services:
       - Services__Users=http://user_service_backend:1115
     depends_on:
       - credit-db
+    networks:
+      - bank_network 
 
   credit-db:
     image: postgres:15
@@ -22,6 +24,9 @@ services:
       POSTGRES_PASSWORD: postgres
     volumes:
       - credit-data:/var/lib/postgresql/data
+    networks:
+      - bank_network 
 
 volumes:
   credit-data:
+

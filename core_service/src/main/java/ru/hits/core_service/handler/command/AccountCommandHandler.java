@@ -1,14 +1,17 @@
 package ru.hits.core_service.handler.command;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import lombok.extern.slf4j.Slf4j;
 import ru.hits.core_service.dto.request.DepositRequest;
+import ru.hits.core_service.dto.request.LoanDisbursementRequest;
+import ru.hits.core_service.dto.request.LoanRepaymentRequest;
 import ru.hits.core_service.dto.request.OpenAccountRequest;
 import ru.hits.core_service.dto.request.WithdrawRequest;
 import ru.hits.core_service.dto.response.AccountResponse;
 import ru.hits.core_service.entity.AccountEntity;
+import ru.hits.core_service.entity.LoanOperationEntity;
 import ru.hits.core_service.entity.OperationEntity;
 import ru.hits.core_service.entity.enums.AccountStatus;
 import ru.hits.core_service.entity.enums.OperationType;
@@ -104,6 +107,54 @@ public class AccountCommandHandler {
                 .type(OperationType.WITHDRAWAL)
                 .amount(command.getAmount())
                 .description(command.getDescription() != null ? command.getDescription() : "Снятие средств со счёта")
+                .build();
+        operationRepository.save(operation);
+
+        return accountMapper.toResponse(account);
+    }
+
+    /**
+     * Выдать кредит на счёт (пополнение баланса счета).
+     */
+    public AccountResponse loanDisbursement(UUID accountId, LoanDisbursementRequest command) {
+        log.debug("loanDisbursement: accountId={}, creditId={}, amount={}", accountId, command.getCreditId(), command.getAmount());
+        AccountEntity account = findActiveAccountOrThrow(accountId);
+
+        account.setBalance(account.getBalance().add(command.getAmount()));
+        accountRepository.save(account);
+
+        LoanOperationEntity operation = LoanOperationEntity.builder()
+                .account(account)
+                .type(OperationType.LOAN_DISBURSEMENT)
+                .amount(command.getAmount())
+                .description(command.getDescription() != null ? command.getDescription() : "Выдача кредита")
+                .creditId(command.getCreditId())
+                .build();
+        operationRepository.save(operation);
+
+        return accountMapper.toResponse(account);
+    }
+
+    /**
+     * Погасить кредит со счёта (снятие со счета).
+     */
+    public AccountResponse loanRepayment(UUID accountId, LoanRepaymentRequest command) {
+        log.debug("loanRepayment: accountId={}, creditId={}, amount={}", accountId, command.getCreditId(), command.getAmount());
+        AccountEntity account = findActiveAccountOrThrow(accountId);
+
+        if (account.getBalance().compareTo(command.getAmount()) < 0) {
+            throw new BusinessException("Недостаточно средств для погашения кредита на счёте: " + accountId);
+        }
+
+        account.setBalance(account.getBalance().subtract(command.getAmount()));
+        accountRepository.save(account);
+
+        LoanOperationEntity operation = LoanOperationEntity.builder()
+                .account(account)
+                .type(OperationType.LOAN_REPAYMENT)
+                .amount(command.getAmount())
+                .description(command.getDescription() != null ? command.getDescription() : "Погашение кредита")
+                .creditId(command.getCreditId())
                 .build();
         operationRepository.save(operation);
 

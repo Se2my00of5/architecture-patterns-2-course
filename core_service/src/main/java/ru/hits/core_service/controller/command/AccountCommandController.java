@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import ru.hits.core_service.dto.request.DepositRequest;
+import ru.hits.core_service.dto.request.LoanDisbursementRequest;
+import ru.hits.core_service.dto.request.LoanRepaymentRequest;
 import ru.hits.core_service.dto.request.OpenAccountRequest;
 import ru.hits.core_service.dto.request.WithdrawRequest;
 import ru.hits.core_service.dto.response.AccountResponse;
@@ -58,5 +60,23 @@ public class AccountCommandController {
             @PathVariable UUID accountId, @Valid @RequestBody WithdrawRequest request
     ) {
         return commandHandler.withdraw(accountId, request);
+    }
+
+    @PostMapping("/{accountId}/loan-disbursement")
+    @Operation(summary = "Выдать кредит на счёт")
+    @ResponseStatus(HttpStatus.OK)
+    public AccountResponse loanDisbursement(
+            @PathVariable UUID accountId, @Valid @RequestBody LoanDisbursementRequest request
+    ) {
+        return commandHandler.loanDisbursement(accountId, request);
+    }
+
+    @PostMapping("/{accountId}/loan-repayment")
+    @Operation(summary = "Погасить кредит со счёта")
+    @ResponseStatus(HttpStatus.OK)
+    public AccountResponse loanRepayment(
+            @PathVariable UUID accountId, @Valid @RequestBody LoanRepaymentRequest request
+    ) {
+        return commandHandler.loanRepayment(accountId, request);
     }
 }

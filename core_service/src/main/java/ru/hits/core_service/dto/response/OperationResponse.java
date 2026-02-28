@@ -24,6 +24,9 @@ public class OperationResponse {
     @Schema(description = "ID счёта")
     private UUID accountId;
 
+    @Schema(description = "ID кредита (необязательно)")
+    private UUID creditId;
+
     @Schema(description = "Тип операции")
     private OperationType type;
 

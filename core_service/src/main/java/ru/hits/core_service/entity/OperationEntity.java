@@ -2,6 +2,7 @@ package ru.hits.core_service.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 import ru.hits.core_service.entity.enums.OperationType;
 
 import java.math.BigDecimal;
@@ -10,11 +11,12 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "operations")
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 public class OperationEntity {
 
     @Id

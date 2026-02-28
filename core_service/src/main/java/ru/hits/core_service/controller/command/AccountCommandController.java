@@ -63,7 +63,7 @@ public class AccountCommandController {
     }
 
     @PostMapping("/{accountId}/loan-disbursement")
-    @Operation(summary = "Выдать кредит на счёт")
+    @Operation(summary = "Выдать кредит на счёт (внутренний, для взаимодействия)")
     @ResponseStatus(HttpStatus.OK)
     public AccountResponse loanDisbursement(
             @PathVariable UUID accountId, @Valid @RequestBody LoanDisbursementRequest request
@@ -72,7 +72,7 @@ public class AccountCommandController {
     }
 
     @PostMapping("/{accountId}/loan-repayment")
-    @Operation(summary = "Погасить кредит со счёта")
+    @Operation(summary = "Погасить кредит со счёта (внутренний, для взаимодействия)")
     @ResponseStatus(HttpStatus.OK)
     public AccountResponse loanRepayment(
             @PathVariable UUID accountId, @Valid @RequestBody LoanRepaymentRequest request

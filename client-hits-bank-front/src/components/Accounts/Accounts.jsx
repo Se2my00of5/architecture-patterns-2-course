@@ -10,7 +10,7 @@ const Accounts = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [accounts, setAccounts] = useState([]);
-  const [setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [modalType, setModalType] = useState(null); 
 

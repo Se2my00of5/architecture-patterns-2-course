@@ -8,7 +8,7 @@ const AccountHistory = () => {
   const { accountId } = useParams();
   const navigate = useNavigate();
   const [operations, setOperations] = useState([]);
-  const [setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [accountInfo, setAccountInfo] = useState(null);
 
   useEffect(() => {

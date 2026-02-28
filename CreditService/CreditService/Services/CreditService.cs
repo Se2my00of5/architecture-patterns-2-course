@@ -67,12 +67,12 @@ namespace CreditService.Services
         // Работа с кредитами
         public async Task<Credit> ApplyForCreditAsync(ApplyForCreditDto dto)
         {
-            // Проверяем существование клиента через API сервиса пользователей
-            var clientExists = await CheckClientExistsAsync(dto.ClientId);
-            if (!clientExists)
-            {
-                throw new InvalidOperationException("Client not found");
-            }
+            //// Проверяем существование клиента через API сервиса пользователей
+            //var clientExists = await CheckClientExistsAsync(dto.ClientId);
+            //if (!clientExists)
+            //{
+            //    throw new InvalidOperationException("Client not found");
+            //}
 
             // Получаем тариф
             var tariff = await _context.CreditTariffs.FindAsync(dto.TariffId);
@@ -249,13 +249,12 @@ namespace CreditService.Services
                 // Уведомление ядра о выдаче кредита
                 var request = new
                 {
-                    credit.ClientId,
-                    credit.Amount,
-                    credit.Id,
-                    Type = "CreditIssuance"
+                    credit.Amount
                 };
 
-                await _httpClient.PostAsJsonAsync("http://core-service/api/transactions/credit", request);
+                //await _httpClient.PostAsJsonAsync($"http://localhost:1111/api/accounts/{credit.ClientId}/deposit", request);
+                string url = string.Format("http://localhost:1111/api/accounts/{0}/deposit", credit.ClientId);
+                await _httpClient.PostAsJsonAsync(url, request);
             }
             catch (Exception ex)
             {
@@ -268,12 +267,12 @@ namespace CreditService.Services
             {
                 var request = new
                 {
-                    ClientId = clientId,
-                    Amount = amount,
-                    Type = "CreditPayment"
+                    Amount = amount
                 };
 
-                await _httpClient.PostAsJsonAsync("http://core-service/api/transactions/debit", request);
+                //await _httpClient.PostAsJsonAsync("http://core-service/api/transactions/debit", request);
+                string url = string.Format("http://localhost:1111/api/accounts/{0}/withdraw", clientId);
+                await _httpClient.PostAsJsonAsync(url, request);
             }
             catch (Exception ex)
             {

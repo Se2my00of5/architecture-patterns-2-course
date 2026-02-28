@@ -2,6 +2,7 @@
 using CreditService.Models.DTOs;
 using CreditService.Services;
 using CreditService.Models;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace CreditService.Controllers
 {
@@ -18,6 +19,7 @@ namespace CreditService.Controllers
 
         // Управление тарифами
         [HttpPost("tariffs")]
+        //[SwaggerOperation("Создать тариф")]
         public async Task<ActionResult<CreditTariff>> CreateTariff([FromBody] CreateTariffDto dto)
         {
             try

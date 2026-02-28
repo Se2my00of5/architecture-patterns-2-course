@@ -1,6 +1,8 @@
 using CreditService.Data;
 using CreditService.Services;
 using Microsoft.EntityFrameworkCore;
+using System.Net;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,17 +18,55 @@ builder.Services.AddDbContext<CreditDbContext>(options =>
 
 
 
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Listen(IPAddress.Loopback, 5205); // http://localhost:5205
+});
+
+
+//builder.Services.AddSwaggerGen(c =>
+//{
+//    c.SwaggerDoc("v1", new OpenApiInfo
+//    {
+//        Version = "v1", 
+//        Title = "Credit Service API"
+//    });
+//});
+
+
+
 builder.Services.AddHttpClient("CoreService", client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["Services:Core"] ?? "http://localhost:5001");
+    client.BaseAddress = new Uri(builder.Configuration["Services:Core"] ?? "http://localhost:1111");
 });
 builder.Services.AddHttpClient("UserService", client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["Services:Users"] ?? "http://localhost:5002");
+    client.BaseAddress = new Uri(builder.Configuration["Services:Users"] ?? "http://localhost:1115");
 });
 
 
 builder.Services.AddScoped<CreditService.Services.CreditService>();
+
+
+// Настройка CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAllOrigins", policy =>  // Название политики должно совпадать
+    {
+        policy.AllowAnyOrigin()    // Разрешаем запросы с любых источников
+              .AllowAnyHeader()    // Разрешаем любые заголовки
+              .AllowAnyMethod();   // Разрешаем любые методы
+    });
+});
+
+
+//- enumConverter
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
+//-
 
 
 
@@ -38,6 +78,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+// Включение CORS
+app.UseCors("AllowAllOrigins");
+
+//---
 
 app.UseHttpsRedirection();
 

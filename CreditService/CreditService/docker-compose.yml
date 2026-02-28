@@ -1,0 +1,32 @@
+﻿version: '3.8'
+
+services:
+  credit-service:
+    build: .
+    ports:
+      - "5005:5005"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5005;
+      - ConnectionStrings__DefaultConnection=Host=credit-db;Database=CreditDb;Username=postgres;Password=postgres
+      - Services__Core=http://core_service_backend:1111
+      - Services__Users=http://user_service_backend:1115
+    depends_on:
+      - credit-db
+    networks:
+      - bank_network 
+
+  credit-db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: CreditDb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - credit-data:/var/lib/postgresql/data
+    networks:
+      - bank_network 
+
+volumes:
+  credit-data:
+

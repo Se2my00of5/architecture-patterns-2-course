@@ -1,18 +1,21 @@
 services:
-  backend:
+  user_service:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: user_service_backend
     restart: unless-stopped
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres_db:5432/user_service_db
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://user_service_db:5432/user_service_db
     ports:
       - "1115:1115"
     depends_on:
-      - postgres_db
+      user_service_db:
+        condition: service_healthy
+    networks:
+      - bank_network
 
-  postgres_db:
+  user_service_db:
     image: postgres:17-alpine
     container_name: user_service_db
     restart: unless-stopped
@@ -24,8 +27,13 @@ services:
       - "2225:5432"
     volumes:
       - postgres_data_user_service:/var/lib/postgresql/data
-
-
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d user_service_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bank_network
 
 volumes:
   postgres_data_user_service:

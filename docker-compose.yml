@@ -1,0 +1,7 @@
+include:
+  - core_service/docker-compose.yml
+  - user_service/docker-compose.yml
+
+networks:
+  bank_network:
+    driver: bridge

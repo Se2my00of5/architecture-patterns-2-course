@@ -1,21 +1,22 @@
-FROM gradle:9.3-jdk21-alpine AS builder
+FROM gradle:jdk21-alpine AS builder
 
 WORKDIR /app
 
-COPY build.gradle settings.gradle gradlew ./
-COPY gradle gradle
+COPY build.gradle settings.gradle ./
 
-RUN gradle dependencies --no-daemon || true
+RUN gradle dependencies --no-daemon
 
-COPY src src
+COPY src ./src
 
-RUN gradle bootJar --no-daemon
+RUN gradle build --no-daemon -x test
+
 
 
 FROM eclipse-temurin:21-jre-alpine
+
 WORKDIR /app
 
-COPY --from=builder /app/build/libs/core_service-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=builder /app/build/libs/*.jar app.jar
 
 EXPOSE 1111
 

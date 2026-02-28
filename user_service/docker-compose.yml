@@ -1,16 +1,16 @@
 services:
-#  backend:
-#    build:
-#      context: .
-#      dockerfile: Dockerfile
-#    container_name: user_service_backend
-#    restart: unless-stopped
-#    environment:
-#      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres_db:5432/user_service_db
-#    ports:
-#      - "1115:1115"
-#    depends_on:
-#      - postgres_db
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: user_service_backend
+    restart: unless-stopped
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres_db:5432/user_service_db
+    ports:
+      - "1115:1115"
+    depends_on:
+      - postgres_db
 
   postgres_db:
     image: postgres:17-alpine

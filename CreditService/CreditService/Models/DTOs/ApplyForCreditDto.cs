@@ -8,6 +8,9 @@ namespace CreditService.Models.DTOs
         public Guid ClientId { get; set; }
 
         [Required]
+        public Guid AccountId { get; set; }
+
+        [Required]
         public Guid TariffId { get; set; }
 
         [Required]

@@ -7,6 +7,8 @@ namespace CreditService.Models.DTOs
         [Required]
         public Guid CreditId { get; set; }
 
+        public Guid AccountId { get; set; }
+
         [Required]
         [Range(1, double.MaxValue)]
         public decimal Amount { get; set; }

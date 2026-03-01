@@ -4,6 +4,9 @@
     {
         public Guid Id { get; set; }
         public Guid ClientId { get; set; }
+
+        public Guid AccountId { get; set; }
+
         public string TariffName { get; set; } = string.Empty;
         public decimal InterestRate { get; set; }
         public decimal Amount { get; set; }

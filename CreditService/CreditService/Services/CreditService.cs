@@ -229,22 +229,31 @@ namespace CreditService.Services
                 PaymentDate = DateTime.UtcNow
             };
 
-            // Обновляем остаток
-            credit.RemainingAmount -= dto.Amount;
+            // Отправляем запрос в ядро для списания средств
+             var result = await NotifyCoreAboutPayment(dto.AccountId, credit.Id, dto.Amount);
 
-            // Проверяем, погашен ли кредит полностью
-            if (credit.RemainingAmount <= 0)
+            if (result)
             {
-                credit.RemainingAmount = 0;
-                credit.Status = CreditStatus.Paid;
-                credit.EndDate = DateTime.UtcNow;
+                // Обновляем остаток
+                credit.RemainingAmount -= dto.Amount;
+
+                // Проверяем, погашен ли кредит полностью
+                if (credit.RemainingAmount <= 0)
+                {
+                    credit.RemainingAmount = 0;
+                    credit.Status = CreditStatus.Paid;
+                    credit.EndDate = DateTime.UtcNow;
+                }
+
+                _context.CreditPayments.Add(payment);
+                await _context.SaveChangesAsync();
+            }
+            else
+            {
+                credit.Status = CreditStatus.Overdue;
+                await _context.SaveChangesAsync();
             }
 
-            _context.CreditPayments.Add(payment);
-            await _context.SaveChangesAsync();
-
-            // Отправляем запрос в ядро для списания средств
-            await NotifyCoreAboutPayment(dto.AccountId, credit.Id, dto.Amount);
 
             var paymentDto = new CreditPaymentDto
             {
@@ -288,7 +297,6 @@ namespace CreditService.Services
         // Расчеты
         public async Task<decimal> CalculateMonthlyPaymentAsync(decimal amount, decimal interestRate, int months)
         {
-            // Аннуитетный платеж
             var monthlyRate = interestRate / 100 / 12;
             if (monthlyRate == 0) return amount / months;
 
@@ -296,6 +304,35 @@ namespace CreditService.Services
             return amount * monthlyRate * factor / (factor - 1);
         }
 
+        //public async Task ProcessDailyPaymentsAsync()
+        //{
+        //    var activeCredits = await _context.Credits
+        //        .Where(c => c.Status == CreditStatus.Active)
+        //        .ToListAsync();
+
+        //    foreach (var credit in activeCredits)
+        //    {
+
+        //        var payment = new MakePaymentDto
+        //        {
+        //            CreditId = credit.Id,
+        //            AccountId = credit.AccountId,
+        //            Amount = credit.MonthlyPayment / (30 * 24 * 60) // Ежеминутный платеж для теста
+        //        };
+
+        //        try
+        //        {
+
+        //            await MakePaymentAsync(payment);
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            credit.Status = CreditStatus.Overdue;
+        //            await _context.SaveChangesAsync();
+        //        }
+
+        //    }
+        //}
         public async Task ProcessDailyPaymentsAsync()
         {
             var activeCredits = await _context.Credits
@@ -304,105 +341,52 @@ namespace CreditService.Services
 
             foreach (var credit in activeCredits)
             {
-
                 var payment = new MakePaymentDto
                 {
                     CreditId = credit.Id,
                     AccountId = credit.AccountId,
-                    Amount = credit.MonthlyPayment / (30 * 24 * 60) // Ежеминутный платеж для теста
+                    Amount = credit.MonthlyPayment // Ежеминутный платеж
                 };
 
                 try
                 {
-
                     await MakePaymentAsync(payment);
                 }
                 catch (Exception ex)
                 {
+                    _logger.LogError(ex, $"Ошибка платежа для кредита {credit.Id}");
                     credit.Status = CreditStatus.Overdue;
                     await _context.SaveChangesAsync();
                 }
-
             }
         }
 
         // Вспомогательные методы для взаимодействия с другими сервисами
-        //private async Task<bool> CheckClientExistsAsync(Guid clientId)
-        //{
-        //    try
-        //    {
-        //        // Запрос к сервису пользователей
-        //        var response = await _httpClient.GetAsync($"http://user-service/api/users/{clientId}");
-        //        return response.IsSuccessStatusCode;
-        //    }
-        //    catch
-        //    {
-        //        return false; 
-        //    }
-        //}
-
-        //private async Task NotifyCoreAboutCreditIssuance(Credit credit)
-        //{
-        //    // Уведомление ядра о выдаче кредита
-        //    var request = new
-        //    {
-        //        creditId = credit.Id,
-        //        amount = credit.Amount
-        //    };
-
-        //    string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-disbursement", credit.ClientId);
-        //    await _httpClient.PostAsJsonAsync(url, request);
-
-        //}
 
         private async Task NotifyCoreAboutCreditIssuance(Credit credit)
         {
-            try
+            var request = new
             {
-                var request = new
-                {
-                    creditId = credit.Id,
-                    amount = credit.Amount
-                };
+                creditId = credit.Id,
+                amount = credit.Amount
+            };
 
-                string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-disbursement", credit.AccountId);
+            string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-disbursement", credit.AccountId);
 
-                // Отправляем запрос и получаем ответ
-                var response = await _httpClient.PostAsJsonAsync(url, request);
+            // Отправляем запрос и получаем ответ
+            var response = await _httpClient.PostAsJsonAsync(url, request);
 
-                var responseBody = await response.Content.ReadAsStringAsync();
+            var responseBody = await response.Content.ReadAsStringAsync();
 
-                if (response.IsSuccessStatusCode)
-                {
-                    // Успешный ответ (200-299)
-                    _logger.LogInformation($"Core service успешно обработал выдачу кредита {credit.Id}. Ответ: {responseBody}");
-
-                }
-                else
-                {
-                    // Ошибка от Core Service
-                    _logger.LogError($"Core service вернул ошибку {response.StatusCode} для кредита {credit.Id}. Тело ответа: {responseBody}");
-
-                    // Здесь можно добавить логику повторной отправки или компенсации
-                    throw new Exception($"Core service error: {response.StatusCode} - {responseBody}");
-                }
-            }
-            catch (HttpRequestException ex)
+            if (response.IsSuccessStatusCode)
             {
-                _logger.LogError(ex, $"Сетевая ошибка при обращении к Core Service для кредита {credit.Id}");
+                _logger.LogInformation($"Core service успешно обработал выдачу кредита {credit.Id}. Ответ: {responseBody}");
 
-
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Неожиданная ошибка при уведомлении Core Service о кредите {credit.Id}");
-                throw;
             }
         }
 
 
-        private async Task NotifyCoreAboutPayment(Guid accountId, Guid id, decimal amount_)
+        private async Task<bool> NotifyCoreAboutPayment(Guid accountId, Guid id, decimal amount_)
         {
             var request = new
             {
@@ -411,8 +395,16 @@ namespace CreditService.Services
             };
 
             string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-repayment", accountId);
-            await _httpClient.PostAsJsonAsync(url, request);
+            var response = await _httpClient.PostAsJsonAsync(url, request);
 
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                return true;
+
+            }
+            return false;
 
         }
     }

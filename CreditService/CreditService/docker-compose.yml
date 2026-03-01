@@ -9,8 +9,8 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:5005;
       - ConnectionStrings__DefaultConnection=Host=credit-db;Database=CreditDb;Username=postgres;Password=postgres
-      - Services__Core=http://core_service_backend:1111
-      - Services__Users=http://user_service_backend:1115
+      - Services__Core=http://core-service-backend:1111
+      - Services__Users=http://user-service-backend:1115
     depends_on:
       - credit-db
     networks:

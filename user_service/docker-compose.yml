@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: user_service_backend
+    container_name: user-service-backend
     restart: unless-stopped
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://user_service_db:5432/user_service_db

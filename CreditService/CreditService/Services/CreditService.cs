@@ -1,7 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
-using CreditService.Data;
+﻿using CreditService.Data;
 using CreditService.Models;
 using CreditService.Models.DTOs;
+using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace CreditService.Services
 {
@@ -9,11 +10,13 @@ namespace CreditService.Services
     {
         private readonly CreditDbContext _context;
         private readonly HttpClient _httpClient;
+        private readonly ILogger<CreditService> _logger;
 
-        public CreditService(CreditDbContext context, HttpClient httpClient)
+        public CreditService(CreditDbContext context, HttpClient httpClient, ILogger<CreditService> logger)
         {
             _context = context;
             _httpClient = httpClient;
+            _logger = logger;
         }
 
         // Управление тарифами
@@ -122,30 +125,84 @@ namespace CreditService.Services
             return cred;
         }
 
-        public async Task<Credit?> GetCreditByIdAsync(Guid id)
+        //public async Task<Credit?> GetCreditByIdAsync(Guid id)
+        //{
+        //    return await _context.Credits
+        //        .Include(c => c.Tariff)
+        //        .Include(c => c.Payments)
+        //        .FirstOrDefaultAsync(c => c.Id == id);
+        //}
+
+        //public async Task<IEnumerable<Credit>> GetClientCreditsAsync(Guid clientId)
+        //{
+        //    return await _context.Credits
+        //        .Include(c => c.Tariff)
+        //        .Where(c => c.ClientId == clientId)
+        //        .ToListAsync();
+        //}
+
+        //public async Task<IEnumerable<Credit>> GetAllCreditsAsync()
+        //{
+        //    return await _context.Credits
+        //        .Include(c => c.Tariff)
+        //        .ToListAsync();
+        //}
+
+        public async Task<CreditInfoDto?> GetCreditByIdAsync(Guid id)
         {
-            return await _context.Credits
+            var credit = await _context.Credits
                 .Include(c => c.Tariff)
                 .Include(c => c.Payments)
                 .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (credit == null)
+                return null;
+
+            return MapToCreditInfoDto(credit);
         }
 
-        public async Task<IEnumerable<Credit>> GetClientCreditsAsync(Guid clientId)
+        public async Task<IEnumerable<CreditInfoDto>> GetClientCreditsAsync(Guid clientId)
         {
-            return await _context.Credits
+            var credits = await _context.Credits
                 .Include(c => c.Tariff)
+                .Include(c => c.Payments)
                 .Where(c => c.ClientId == clientId)
                 .ToListAsync();
+
+            return credits.Select(MapToCreditInfoDto);
         }
 
-        public async Task<IEnumerable<Credit>> GetAllCreditsAsync()
+        public async Task<IEnumerable<CreditInfoDto>> GetAllCreditsAsync()
         {
-            return await _context.Credits
+            var credits = await _context.Credits
                 .Include(c => c.Tariff)
+                .Include(c => c.Payments)
                 .ToListAsync();
+
+            return credits.Select(MapToCreditInfoDto);
         }
 
-        public async Task<CreditPayment> MakePaymentAsync(MakePaymentDto dto)
+        // Приватный метод для маппинга
+        private CreditInfoDto MapToCreditInfoDto(Credit credit)
+        {
+            return new CreditInfoDto
+            {
+                Id = credit.Id,
+                ClientId = credit.ClientId,
+                TariffName = credit.Tariff?.Name ?? "Unknown",
+                InterestRate = credit.Tariff?.InterestRate ?? 0,
+                Amount = credit.Amount,
+                RemainingAmount = credit.RemainingAmount,
+                MonthlyPayment = credit.MonthlyPayment,
+                StartDate = credit.StartDate,
+                EndDate = credit.EndDate,
+                Status = credit.Status.ToString(),
+                PaymentsCount = credit.Payments?.Count ?? 0,
+                TotalPaid = credit.Payments?.Sum(p => p.Amount) ?? 0
+            };
+        }
+
+        public async Task<CreditPaymentDto> MakePaymentAsync(MakePaymentDto dto)
         {
             var credit = await _context.Credits
                 .Include(c => c.Payments)
@@ -188,15 +245,45 @@ namespace CreditService.Services
             // Отправляем запрос в ядро для списания средств
             await NotifyCoreAboutPayment(credit.ClientId, credit.Id, dto.Amount);
 
-            return payment;
+            var paymentDto = new CreditPaymentDto
+            {
+                Id = payment.Id,
+                CreditId = payment.CreditId,
+                Amount = payment.Amount,
+                PaymentDate = payment.PaymentDate,
+                Type = payment.Type
+            };
+
+            return paymentDto;
         }
 
-        public async Task<IEnumerable<CreditPayment>> GetCreditPaymentsAsync(Guid creditId)
+        //public async Task<IEnumerable<CreditPayment>> GetCreditPaymentsAsync(Guid creditId)
+        //{
+        //    return await _context.CreditPayments
+        //        .Where(p => p.CreditId == creditId)
+        //        .OrderByDescending(p => p.PaymentDate)
+        //        .ToListAsync();
+        //}
+        public async Task<IEnumerable<CreditPaymentDto>> GetCreditPaymentsAsync(Guid creditId)
         {
-            return await _context.CreditPayments
+            var payments = await _context.CreditPayments
                 .Where(p => p.CreditId == creditId)
                 .OrderByDescending(p => p.PaymentDate)
                 .ToListAsync();
+
+            return payments.Select(MapToCreditPaymentDto);
+        }
+        private CreditPaymentDto MapToCreditPaymentDto(CreditPayment payment)
+        {
+            return new CreditPaymentDto
+            {
+                Id = payment.Id,
+                CreditId = payment.CreditId,
+                Amount = payment.Amount,
+                PaymentDate = payment.PaymentDate,
+                Type = payment.Type,
+                TransactionId = payment.TransactionId
+            };
         }
 
         // Расчеты
@@ -255,19 +342,66 @@ namespace CreditService.Services
             }
         }
 
+        //private async Task NotifyCoreAboutCreditIssuance(Credit credit)
+        //{
+        //    // Уведомление ядра о выдаче кредита
+        //    var request = new
+        //    {
+        //        creditId = credit.Id,
+        //        amount = credit.Amount
+        //    };
+
+        //    string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-disbursement", credit.ClientId);
+        //    await _httpClient.PostAsJsonAsync(url, request);
+
+        //}
+
         private async Task NotifyCoreAboutCreditIssuance(Credit credit)
         {
-            // Уведомление ядра о выдаче кредита
-            var request = new
+            try
             {
-                creditId = credit.Id,
-                amount = credit.Amount
-            };
+                var request = new
+                {
+                    creditId = credit.Id,
+                    amount = credit.Amount
+                };
 
-            string url = string.Format("http://localhost:1111/api/accounts/{0}/loan-disbursement", credit.ClientId);
-            await _httpClient.PostAsJsonAsync(url, request);
+                string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-disbursement", credit.ClientId);
 
+                // Отправляем запрос и получаем ответ
+                var response = await _httpClient.PostAsJsonAsync(url, request);
+
+                var responseBody = await response.Content.ReadAsStringAsync();
+
+                if (response.IsSuccessStatusCode)
+                {
+                    // Успешный ответ (200-299)
+                    _logger.LogInformation($"Core service успешно обработал выдачу кредита {credit.Id}. Ответ: {responseBody}");
+
+                }
+                else
+                {
+                    // Ошибка от Core Service
+                    _logger.LogError($"Core service вернул ошибку {response.StatusCode} для кредита {credit.Id}. Тело ответа: {responseBody}");
+
+                    // Здесь можно добавить логику повторной отправки или компенсации
+                    throw new Exception($"Core service error: {response.StatusCode} - {responseBody}");
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, $"Сетевая ошибка при обращении к Core Service для кредита {credit.Id}");
+
+
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Неожиданная ошибка при уведомлении Core Service о кредите {credit.Id}");
+                throw;
+            }
         }
+
 
         private async Task NotifyCoreAboutPayment(Guid clientId, Guid id, decimal amount_)
         {
@@ -277,7 +411,7 @@ namespace CreditService.Services
                 amount = amount_
             };
 
-            string url = string.Format("http://localhost:1111/api/accounts/{0}/loan-repayment", clientId);
+            string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-repayment", clientId);
             await _httpClient.PostAsJsonAsync(url, request);
 
 

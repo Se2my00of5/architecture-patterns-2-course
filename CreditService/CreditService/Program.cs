@@ -52,6 +52,7 @@ builder.Services.AddHttpClient("UserService", client =>
 
 
 builder.Services.AddScoped<CreditService.Services.CreditService>();
+builder.Services.AddHostedService<PaymentProcessingService>();
 
 
 // Настройка CORS

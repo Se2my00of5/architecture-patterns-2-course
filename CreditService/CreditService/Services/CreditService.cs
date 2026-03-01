@@ -288,7 +288,6 @@ namespace CreditService.Services
         // Расчеты
         public async Task<decimal> CalculateMonthlyPaymentAsync(decimal amount, decimal interestRate, int months)
         {
-            // Аннуитетный платеж
             var monthlyRate = interestRate / 100 / 12;
             if (monthlyRate == 0) return amount / months;
 
@@ -296,6 +295,35 @@ namespace CreditService.Services
             return amount * monthlyRate * factor / (factor - 1);
         }
 
+        //public async Task ProcessDailyPaymentsAsync()
+        //{
+        //    var activeCredits = await _context.Credits
+        //        .Where(c => c.Status == CreditStatus.Active)
+        //        .ToListAsync();
+
+        //    foreach (var credit in activeCredits)
+        //    {
+
+        //        var payment = new MakePaymentDto
+        //        {
+        //            CreditId = credit.Id,
+        //            AccountId = credit.AccountId,
+        //            Amount = credit.MonthlyPayment / (30 * 24 * 60) // Ежеминутный платеж для теста
+        //        };
+
+        //        try
+        //        {
+
+        //            await MakePaymentAsync(payment);
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            credit.Status = CreditStatus.Overdue;
+        //            await _context.SaveChangesAsync();
+        //        }
+
+        //    }
+        //}
         public async Task ProcessDailyPaymentsAsync()
         {
             var activeCredits = await _context.Credits
@@ -304,56 +332,27 @@ namespace CreditService.Services
 
             foreach (var credit in activeCredits)
             {
-
                 var payment = new MakePaymentDto
                 {
                     CreditId = credit.Id,
                     AccountId = credit.AccountId,
-                    Amount = credit.MonthlyPayment / (30 * 24 * 60) // Ежеминутный платеж для теста
+                    Amount = credit.MonthlyPayment / (30 * 24 * 60) // Ежеминутный платеж
                 };
 
                 try
                 {
-
                     await MakePaymentAsync(payment);
                 }
                 catch (Exception ex)
                 {
+                    _logger.LogError(ex, $"Ошибка платежа для кредита {credit.Id}");
                     credit.Status = CreditStatus.Overdue;
                     await _context.SaveChangesAsync();
                 }
-
             }
         }
 
         // Вспомогательные методы для взаимодействия с другими сервисами
-        //private async Task<bool> CheckClientExistsAsync(Guid clientId)
-        //{
-        //    try
-        //    {
-        //        // Запрос к сервису пользователей
-        //        var response = await _httpClient.GetAsync($"http://user-service/api/users/{clientId}");
-        //        return response.IsSuccessStatusCode;
-        //    }
-        //    catch
-        //    {
-        //        return false; 
-        //    }
-        //}
-
-        //private async Task NotifyCoreAboutCreditIssuance(Credit credit)
-        //{
-        //    // Уведомление ядра о выдаче кредита
-        //    var request = new
-        //    {
-        //        creditId = credit.Id,
-        //        amount = credit.Amount
-        //    };
-
-        //    string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-disbursement", credit.ClientId);
-        //    await _httpClient.PostAsJsonAsync(url, request);
-
-        //}
 
         private async Task NotifyCoreAboutCreditIssuance(Credit credit)
         {

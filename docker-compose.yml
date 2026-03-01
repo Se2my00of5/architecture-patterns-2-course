@@ -2,6 +2,8 @@ include:
   - core_service/docker-compose.yml
   - user_service/docker-compose.yml
   - CreditService/CreditService/docker-compose.yml
+  - client-hits-bank-front/docker-compose.yml
+  - employee-hits-bank-front/docker-compose.yml
 
 networks:
   bank_network:

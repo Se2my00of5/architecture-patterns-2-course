@@ -1,0 +1,156 @@
+.client-credits {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 2rem;
+}
+
+.credits-header {
+  margin-bottom: 2rem;
+}
+
+.credits-header-top {
+  margin-bottom: 1rem;
+}
+
+.credits-header h2 {
+  font-size: 1.85rem;
+  font-weight: bold;
+  color: #333;
+  margin: 0 0 0.5rem 0;
+}
+
+.client-id-display {
+  font-family: monospace;
+  font-size: 0.9rem;
+  color: #6c757d;
+  background-color: #f8f9fa;
+  padding: 0.5rem 1rem;
+  border-radius: 0.4rem;
+  word-break: break-all;
+}
+
+.back-button {
+  padding: 0.5rem 1rem;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 0.4rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.back-button:hover {
+  background-color: #5a6268;
+}
+
+.credits-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.credit-card {
+  background-color: white;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  box-shadow: 0 0 0 1px rgba(20,20,31,.05), 0 1px 3px 0 rgba(20,20,31,.15);
+  border-left: 4px solid transparent;
+}
+
+.credit-card:has(.status-active) {
+  border-left-color: #28a745;
+}
+
+.credit-card:has(.status-overdue) {
+  border-left-color: #ffc107;
+}
+
+.credit-card:has(.status-defaulted) {
+  border-left-color: #dc3545;
+}
+
+.credit-card:has(.status-paid) {
+  border-left-color: #6c757d;
+}
+
+.credit-header-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.credit-id {
+  font-family: monospace;
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+.credit-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.detail-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detail-label {
+  color: #6c757d;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.detail-value {
+  font-family: monospace;
+  font-size: 1rem;
+  color: #333;
+  word-break: break-all;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.status-active {
+  background-color: #28a745;
+  color: white;
+}
+
+.status-paid {
+  background-color: #6c757d;
+  color: white;
+}
+
+.status-overdue {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.status-defaulted {
+  background-color: #dc3545;
+  color: white;
+}
+
+.no-credits {
+  text-align: center;
+  padding: 3rem;
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 0 0 1px rgba(20,20,31,.05), 0 1px 3px 0 rgba(20,20,31,.15);
+}
+
+.no-credits p {
+  color: #6c757d;
+  font-size: 1.1rem;
+}

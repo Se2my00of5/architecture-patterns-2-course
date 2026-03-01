@@ -9,6 +9,8 @@ import Clients from './components/Clients/Clients';
 import ClientAccounts from './components/Clients/ClientAccounts';
 import AccountHistory from './components/Clients/AccountHistory';
 import Employees from './components/Employees/Employees';
+import Tariffs from './components/Tariffs/Tariffs';
+import ClientCredits from './components/Clients/ClientCredits';
 
 import './App.css';
 
@@ -50,9 +52,19 @@ const AppContent = () => {
             <AccountHistory />
           </PrivateRoute>
         } />
+        <Route path="/clients/:clientId/credits" element={
+          <PrivateRoute>
+            <ClientCredits />
+          </PrivateRoute>
+        } />
         <Route path="/employees" element={
           <PrivateRoute>
             <Employees />
+          </PrivateRoute>
+        } />
+        <Route path="/tariffs" element={
+          <PrivateRoute>
+            <Tariffs />
           </PrivateRoute>
         } />
       </Routes>

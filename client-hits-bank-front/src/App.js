@@ -7,6 +7,9 @@ import Login from './components/Login/Login';
 import Dashboard from './components/Dashboard/Dashboard';
 import Accounts from './components/Accounts/Accounts';
 import AccountHistory from './components/Accounts/AccountHistory';
+import Credits from './components/Credits/Credits';
+import ClientCredits from './components/Credits/ClientCredits';
+
 import './App.css';
 
 const PrivateRoute = ({ children }) => {
@@ -40,6 +43,16 @@ const AppContent = () => {
         <Route path="/accounts/:accountId/history" element={
           <PrivateRoute>
             <AccountHistory />
+          </PrivateRoute>
+        } />
+        <Route path="/credit" element={
+          <PrivateRoute>
+            <Credits />
+          </PrivateRoute>
+        } />
+        <Route path="/client-credits" element={
+          <PrivateRoute>
+            <ClientCredits />
           </PrivateRoute>
         } />
       </Routes>

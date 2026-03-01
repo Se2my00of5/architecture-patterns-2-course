@@ -1,0 +1,15 @@
+services:
+  client-front:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: client-front
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    networks:
+      - bank_network
+    environment:
+      - REACT_APP_CORE_API_URL=http://core-service-backend:1111
+      - REACT_APP_USER_API_URL=http://user-service-backend:1115
+      - REACT_APP_CREDIT_API_URL=http://credit-service:5005

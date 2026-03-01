@@ -83,13 +83,7 @@
 }
 
 .employee-grid {
-    grid-template-columns: repeat(3, 1fr);
-}
-
-@media (max-width: 768px) {
-    .employee-grid {
-        grid-template-columns: 1fr;
-    }
+    grid-template-columns: repeat(1, 1fr);
 }
 
 .menu-button {
@@ -109,34 +103,29 @@
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.menu-button .icon {
-    font-size: 2.5rem;
-    margin-bottom: 0.8rem;
-}
-
-.menu-button.clients {
+.menu-button.clients-but {
     background-color: #346cb0;
 }
 
-.menu-button.clients:hover {
+.menu-button.clients-but:hover {
     background-color: #2b5a92;
     box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
-.menu-button.employees {
+.menu-button.employees-but {
     background-color: #28a745;
 }
 
-.menu-button.employees:hover {
+.menu-button.employees-but:hover {
     background-color: #218838;
     box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
-.menu-button.tariffs {
+.menu-button.tariffs-but {
     background-color: #ffc107;
 }
 
-.menu-button.tariffs:hover {
+.menu-button.tariffs-but:hover {
     background-color: #e0a800;
     box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }

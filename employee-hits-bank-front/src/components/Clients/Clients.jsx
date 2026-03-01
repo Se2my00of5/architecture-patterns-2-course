@@ -64,6 +64,10 @@ const Clients = () => {
     navigate(`/clients/${clientId}/accounts`);
   };
 
+  const handleViewCredits = (clientId) => {
+    navigate(`/clients/${clientId}/credits`);
+  };
+
   const activeClients = clients.filter(client => !client.isBlocked);
   const blockedClients = clients.filter(client => client.isBlocked);
 
@@ -101,6 +105,12 @@ const Clients = () => {
                 
                 <div className="client-actions">
                   <button 
+                    className="action-button credits"
+                    onClick={() => handleViewCredits(client.id)}
+                  >
+                    Кредиты
+                  </button>
+                  <button 
                     className="action-button accounts"
                     onClick={() => handleViewAccounts(client.id)}
                   >
@@ -135,6 +145,12 @@ const Clients = () => {
                 </div>
                 
                 <div className="client-actions">
+                  <button 
+                    className="action-button credits"
+                    onClick={() => handleViewCredits(client.id)}
+                  >
+                    Кредиты
+                  </button>
                   <button 
                     className="action-button accounts"
                     onClick={() => handleViewAccounts(client.id)}

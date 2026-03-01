@@ -20,7 +20,7 @@ const Dashboard = () => {
   };
 
   const handleCreateTariff = () => {
-    navigate('/tariffs/create');
+    navigate('/tariffs');
   };
 
   return (
@@ -46,21 +46,21 @@ const Dashboard = () => {
         
         <div className="menu-grid employee-grid">
           <button 
-            className="menu-button clients"
+            className="menu-button clients-but"
             onClick={handleClientList}
           >
             <span>Список клиентов</span>
           </button>
 
           <button 
-            className="menu-button employees"
+            className="menu-button employees-but"
             onClick={handleEmployeeList}
           >
             <span>Список сотрудников</span>
           </button>
 
           <button 
-            className="menu-button tariffs"
+            className="menu-button tariffs-but"
             onClick={handleCreateTariff}
           >
             <span>Создать тариф</span>

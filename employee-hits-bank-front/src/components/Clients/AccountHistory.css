@@ -77,12 +77,6 @@
   border-left-color: #ff9800;
 }
 
-.operation-icon {
-  font-size: 2rem;
-  min-width: 3rem;
-  text-align: center;
-}
-
 .operation-content {
   flex: 1;
 }

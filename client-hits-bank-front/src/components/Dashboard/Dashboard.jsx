@@ -37,9 +37,11 @@ const Dashboard = () => {
   };
 
   const handleTakeCredit = () => {
+    navigate('/credit');
   };
 
   const handleYourCredits = () => {
+    navigate('/client-credits');
   };
 
   return (
@@ -76,7 +78,7 @@ const Dashboard = () => {
           </button>
 
           <button 
-            className="menu-button accounts"
+            className="menu-button accounts-but"
             onClick={handleYourAccounts}
           >
             <span>Ваши счета</span>

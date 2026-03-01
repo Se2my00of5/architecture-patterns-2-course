@@ -1,21 +1,21 @@
-.clients {
+.tariffs {
   max-width: 1200px;
   margin: 2rem auto;
   padding: 0 2rem;
 }
 
-.clients-header {
+.tariffs-header {
   margin-bottom: 2rem;
 }
 
-.clients-header-top {
+.tariffs-header-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
 }
 
-.clients-header h2 {
+.tariffs-header h2 {
   font-size: 1.85rem;
   font-weight: bold;
   color: #333;
@@ -52,50 +52,39 @@
   background-color: #218838;
 }
 
-.clients-section {
+.tariffs-section {
   margin-bottom: 2.5rem;
 }
 
-.clients-section h3 {
+.tariffs-section h3 {
   font-size: 1.2rem;
   color: #495057;
   margin-bottom: 1rem;
   font-weight: 600;
 }
 
-.clients-list {
+.tariffs-list {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-.client-card {
+.tariff-card {
   background-color: white;
   border-radius: 0.5rem;
   padding: 1.5rem;
   box-shadow: 0 0 0 1px rgba(20,20,31,.05), 0 1px 3px 0 rgba(20,20,31,.15);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
   transition: all 0.2s;
+  border-left: 4px solid #28a745;
 }
 
-.client-card.blocked {
-  background-color: #f8f9fa;
-  opacity: 0.8;
-  border-left: 4px solid #dc3545;
-}
-
-.client-info {
+.tariff-info {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  flex: 1;
 }
 
-.client-id, .client-name {
+.tariff-id, .tariff-name, .tariff-rate, .tariff-date {
   font-family: monospace;
   font-size: 0.95rem;
 }
@@ -104,43 +93,18 @@
   color: #6c757d;
   font-weight: 500;
   margin-right: 0.5rem;
-  min-width: 70px;
+  min-width: 100px;
   display: inline-block;
 }
 
-.client-actions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.action-button {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 0.4rem;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-weight: 500;
-  min-width: 120px;
-}
-
-.action-button.block {
-  background-color: #dc3545;
-  color: white;
-}
-
-.action-button.block:hover {
-  background-color: #c82333;
-}
-
-.action-button.unblock {
-  background-color: #28a745;
-  color: white;
-}
-
-.action-button.unblock:hover {
-  background-color: #218838;
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 4;
 }
 
 .modal {
@@ -155,16 +119,6 @@
   background-color: white;
   width: 90%;
   max-width: 400px;
-}
-
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 4;
 }
 
 .modal-title {
@@ -237,7 +191,7 @@
   background-color: #5a6268;
 }
 
-.no-clients {
+.no-tariffs {
   text-align: center;
   padding: 3rem;
   background-color: white;
@@ -245,32 +199,7 @@
   box-shadow: 0 0 0 1px rgba(20,20,31,.05), 0 1px 3px 0 rgba(20,20,31,.15);
 }
 
-.no-clients p {
+.no-tariffs p {
   color: #6c757d;
   font-size: 1.1rem;
-}
-
-.client-actions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.action-button.accounts {
-  background-color: #346cb0;
-  color: white;
-}
-
-.action-button.accounts:hover {
-  background-color: #2b5a92;
-}
-
-.action-button.credits {
-  background-color: #fd7e14;
-  color: white;
-}
-
-.action-button.credits:hover {
-  background-color: #e06b0c;
 }

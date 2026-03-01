@@ -1,7 +1,9 @@
 using CreditService.Data;
 using CreditService.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 using System.Net;
+using System.Reflection;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,14 +26,18 @@ builder.Services.AddDbContext<CreditDbContext>(options =>
 //});
 
 
-//builder.Services.AddSwaggerGen(c =>
-//{
-//    c.SwaggerDoc("v1", new OpenApiInfo
-//    {
-//        Version = "v1", 
-//        Title = "Credit Service API"
-//    });
-//});
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Credit Service API",
+        Version = "v1",
+        Description = "API для управления кредитными тарифами"
+    });
+
+    c.EnableAnnotations();
+
+});
 
 
 

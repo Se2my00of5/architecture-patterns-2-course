@@ -65,7 +65,7 @@ namespace CreditService.Services
         }
 
         // Работа с кредитами
-        public async Task<Credit> ApplyForCreditAsync(ApplyForCreditDto dto)
+        public async Task<CreditResponseDto> ApplyForCreditAsync(ApplyForCreditDto dto)
         {
             //// Проверяем существование клиента через API сервиса пользователей
             //var clientExists = await CheckClientExistsAsync(dto.ClientId);
@@ -107,7 +107,19 @@ namespace CreditService.Services
             // Отправляем запрос в ядро для создания счета и зачисления средств
             await NotifyCoreAboutCreditIssuance(credit);
 
-            return credit;
+            var cred = new CreditResponseDto
+            {
+                Id = credit.Id,
+                ClientId = credit.ClientId,
+                TariffId = credit.TariffId,
+                Amount = credit.Amount,
+                RemainingAmount = credit.Amount,
+                MonthlyPayment = monthlyPayment,
+                StartDate = credit.StartDate
+
+            };
+
+            return cred;
         }
 
         public async Task<Credit?> GetCreditByIdAsync(Guid id)
@@ -174,7 +186,7 @@ namespace CreditService.Services
             await _context.SaveChangesAsync();
 
             // Отправляем запрос в ядро для списания средств
-            await NotifyCoreAboutPayment(credit.ClientId, dto.Amount);
+            await NotifyCoreAboutPayment(credit.ClientId, credit.Id, dto.Amount);
 
             return payment;
         }
@@ -206,24 +218,25 @@ namespace CreditService.Services
 
             foreach (var credit in activeCredits)
             {
-                // Здесь логика ежедневного списания для тестирования
-                // В реальности тут было бы списание раз в месяц
 
                 var payment = new MakePaymentDto
                 {
                     CreditId = credit.Id,
-                    Amount = credit.MonthlyPayment / 30, // Ежедневный платеж для теста
+                    Amount = credit.MonthlyPayment / (30 * 24 * 60), // Ежеминутный платеж для теста
                     Type = PaymentType.Scheduled
                 };
 
                 try
                 {
+
                     await MakePaymentAsync(payment);
                 }
                 catch (Exception ex)
                 {
-                    // Здесь можно пометить кредит как просроченный
+                    credit.Status = CreditStatus.Overdue;
+                    await _context.SaveChangesAsync();
                 }
+
             }
         }
 
@@ -244,39 +257,30 @@ namespace CreditService.Services
 
         private async Task NotifyCoreAboutCreditIssuance(Credit credit)
         {
-            try
+            // Уведомление ядра о выдаче кредита
+            var request = new
             {
-                // Уведомление ядра о выдаче кредита
-                var request = new
-                {
-                    credit.Amount
-                };
+                creditId = credit.Id,
+                amount = credit.Amount
+            };
 
-                //await _httpClient.PostAsJsonAsync($"http://localhost:1111/api/accounts/{credit.ClientId}/deposit", request);
-                string url = string.Format("http://localhost:1111/api/accounts/{0}/deposit", credit.ClientId);
-                await _httpClient.PostAsJsonAsync(url, request);
-            }
-            catch (Exception ex)
-            {
-            }
+            string url = string.Format("http://localhost:1111/api/accounts/{0}/loan-disbursement", credit.ClientId);
+            await _httpClient.PostAsJsonAsync(url, request);
+
         }
 
-        private async Task NotifyCoreAboutPayment(Guid clientId, decimal amount)
+        private async Task NotifyCoreAboutPayment(Guid clientId, Guid id, decimal amount_)
         {
-            try
+            var request = new
             {
-                var request = new
-                {
-                    Amount = amount
-                };
+                creditId = id,
+                amount = amount_
+            };
 
-                //await _httpClient.PostAsJsonAsync("http://core-service/api/transactions/debit", request);
-                string url = string.Format("http://localhost:1111/api/accounts/{0}/withdraw", clientId);
-                await _httpClient.PostAsJsonAsync(url, request);
-            }
-            catch (Exception ex)
-            {
-            }
+            string url = string.Format("http://localhost:1111/api/accounts/{0}/loan-repayment", clientId);
+            await _httpClient.PostAsJsonAsync(url, request);
+
+
         }
     }
 

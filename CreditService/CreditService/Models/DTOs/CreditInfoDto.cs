@@ -15,4 +15,5 @@
         public int PaymentsCount { get; set; }
         public decimal TotalPaid { get; set; }
     }
+
 }

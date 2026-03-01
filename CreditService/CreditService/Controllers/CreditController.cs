@@ -19,7 +19,11 @@ namespace CreditService.Controllers
 
         // Управление тарифами
         [HttpPost("tariffs")]
-        //[SwaggerOperation("Создать тариф")]
+        [SwaggerOperation(
+            Summary = "Создание нового тарифа",
+            Description = "Создает новый кредитный тариф"
+        )]
+
         public async Task<ActionResult<CreditTariff>> CreateTariff([FromBody] CreateTariffDto dto)
         {
             try
@@ -34,6 +38,7 @@ namespace CreditService.Controllers
         }
 
         [HttpGet("tariffs")]
+        [SwaggerOperation(Summary = "Получение всех тарифов")]
         public async Task<ActionResult<IEnumerable<CreditTariff>>> GetAllTariffs([FromQuery] bool onlyActive = true)
         {
             var tariffs = await _creditService.GetAllTariffsAsync(onlyActive);
@@ -41,6 +46,7 @@ namespace CreditService.Controllers
         }
 
         [HttpGet("tariffs/{id}")]
+        [SwaggerOperation(Summary = "Получение тарифа по id")]
         public async Task<ActionResult<CreditTariff>> GetTariff(Guid id)
         {
             var tariff = await _creditService.GetTariffByIdAsync(id);
@@ -51,6 +57,7 @@ namespace CreditService.Controllers
         }
 
         [HttpDelete("tariffs/{id}")]
+        [SwaggerOperation(Summary = "Удаление тарифа")]
         public async Task<IActionResult> DeactivateTariff(Guid id)
         {
             var result = await _creditService.DeactivateTariffAsync(id);
@@ -62,12 +69,13 @@ namespace CreditService.Controllers
 
         // Заявки на кредит
         [HttpPost("apply")]
+        [SwaggerOperation(Summary = "Взятие кредита")]
         public async Task<ActionResult<Credit>> ApplyForCredit([FromBody] ApplyForCreditDto dto)
         {
             try
             {
                 var credit = await _creditService.ApplyForCreditAsync(dto);
-                return CreatedAtAction(nameof(GetCredit), new { id = credit.Id }, credit);
+                return StatusCode(201, credit);
             }
             catch (InvalidOperationException ex)
             {
@@ -81,6 +89,7 @@ namespace CreditService.Controllers
 
         // Информация о кредитах
         [HttpGet]
+        [SwaggerOperation(Summary = "Получение информации о всех кредитах")]
         public async Task<ActionResult<IEnumerable<Credit>>> GetAllCredits()
         {
             var credits = await _creditService.GetAllCreditsAsync();
@@ -88,6 +97,7 @@ namespace CreditService.Controllers
         }
 
         [HttpGet("{id}")]
+        [SwaggerOperation(Summary = "Получение информации о кредите по id")]
         public async Task<ActionResult<Credit>> GetCredit(Guid id)
         {
             var credit = await _creditService.GetCreditByIdAsync(id);
@@ -98,6 +108,7 @@ namespace CreditService.Controllers
         }
 
         [HttpGet("client/{clientId}")]
+        [SwaggerOperation(Summary = "Получение всех кредитов клиента")]
         public async Task<ActionResult<IEnumerable<Credit>>> GetClientCredits(Guid clientId)
         {
             var credits = await _creditService.GetClientCreditsAsync(clientId);
@@ -106,6 +117,7 @@ namespace CreditService.Controllers
 
         // Платежи
         [HttpPost("payments")]
+        [SwaggerOperation(Summary = "Внести платеж по кредиту")]
         public async Task<ActionResult<CreditPayment>> MakePayment([FromBody] MakePaymentDto dto)
         {
             try
@@ -120,19 +132,21 @@ namespace CreditService.Controllers
         }
 
         [HttpGet("{creditId}/payments")]
+        [SwaggerOperation(Summary = "Получение информации о всех платежах по кредиту")]
         public async Task<ActionResult<IEnumerable<CreditPayment>>> GetCreditPayments(Guid creditId)
         {
             var payments = await _creditService.GetCreditPaymentsAsync(creditId);
             return Ok(payments);
         }
 
-        //// Для тестирования - принудительный запуск ежедневных платежей
-        //[HttpPost("process-daily")]
-        //public async Task<IActionResult> ProcessDailyPayments()
-        //{
-        //    await _creditService.ProcessDailyPaymentsAsync();
-        //    return Ok(new { message = "Daily payments processed" });
-        //}
+        //принудительный запуск ежедневных платежей
+        [HttpPost("process-daily")]
+        [SwaggerOperation(Summary = "Ежеминутный платеж (делает единовременную оплату всех кредитов на сумму равную месячный_платеж/30*24*60)")]
+        public async Task<IActionResult> ProcessDailyPayments()
+        {
+            await _creditService.ProcessDailyPaymentsAsync();
+            return Ok(new { message = "Daily payments processed" });
+        }
 
         //// Расчет ежемесячного платежа
         //[HttpGet("calculate-payment")]

@@ -13,6 +13,5 @@ namespace CreditService.Models.DTOs
         [Range(1, double.MaxValue)]
         public decimal Amount { get; set; }
 
-        public PaymentType Type { get; set; } = PaymentType.Scheduled;
     }
 }

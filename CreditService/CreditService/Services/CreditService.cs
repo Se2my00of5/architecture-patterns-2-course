@@ -226,8 +226,7 @@ namespace CreditService.Services
                 Id = Guid.NewGuid(),
                 CreditId = credit.Id,
                 Amount = dto.Amount,
-                PaymentDate = DateTime.UtcNow,
-                Type = dto.Type
+                PaymentDate = DateTime.UtcNow
             };
 
             // Обновляем остаток
@@ -252,8 +251,7 @@ namespace CreditService.Services
                 Id = payment.Id,
                 CreditId = payment.CreditId,
                 Amount = payment.Amount,
-                PaymentDate = payment.PaymentDate,
-                Type = payment.Type
+                PaymentDate = payment.PaymentDate
             };
 
             return paymentDto;
@@ -283,7 +281,6 @@ namespace CreditService.Services
                 CreditId = payment.CreditId,
                 Amount = payment.Amount,
                 PaymentDate = payment.PaymentDate,
-                Type = payment.Type,
                 TransactionId = payment.TransactionId
             };
         }
@@ -312,8 +309,7 @@ namespace CreditService.Services
                 {
                     CreditId = credit.Id,
                     AccountId = credit.AccountId,
-                    Amount = credit.MonthlyPayment / (30 * 24 * 60), // Ежеминутный платеж для теста
-                    Type = PaymentType.Scheduled
+                    Amount = credit.MonthlyPayment / (30 * 24 * 60) // Ежеминутный платеж для теста
                 };
 
                 try

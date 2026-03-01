@@ -48,7 +48,7 @@ const PaymentModal = ({ credit, onClose, onSubmit }) => {
       style: 'currency',
       currency: 'RUB',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 2
     }).format(value);
   };
 
@@ -84,6 +84,7 @@ const PaymentModal = ({ credit, onClose, onSubmit }) => {
             <input
               type="number"
               min="1"
+              step="0.01"
               max={credit.remainingAmount}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}

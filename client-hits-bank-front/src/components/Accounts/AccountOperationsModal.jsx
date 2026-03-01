@@ -35,7 +35,7 @@ const AccountOperationsModal = ({ account, type, onClose, onSubmit }) => {
             <input
               type="number"
               min="1"
-              step="1"
+              step="0.01"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="Введите сумму"

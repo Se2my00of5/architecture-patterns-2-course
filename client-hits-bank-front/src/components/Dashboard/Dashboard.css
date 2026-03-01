@@ -1,0 +1,147 @@
+.dashboard {
+    min-height: 100vh;
+    background-color: #f6f7f9;
+}
+
+.dashboard-header {
+    color: white;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    height: 3.5rem;
+    background-color: #346cb0;
+    padding: 0 2rem;
+    box-sizing: border-box;
+}
+
+.header-content {
+    display: flex;
+    width: 100%;
+    max-width: 1200px;
+    align-items: center;
+    margin: 0 auto;
+}
+
+.header-content h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.header-content h1 span {
+    color: #d6e2e9;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+    gap: 1.5rem;
+}
+
+.user-info span {
+    font-size: 0.9rem;
+    color: white;
+}
+
+.user-info span span {
+    color: #d6e2e9;
+}
+
+.logout-button {
+    padding: 0.4rem 1rem;
+    background-color: rgba(255,255,255,0.2);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 0.4rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.logout-button:hover {
+    background-color: rgba(255,255,255,0.3);
+    border-color: rgba(255,255,255,0.5);
+}
+
+.dashboard-main {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 2rem;
+}
+
+.dashboard-main h2 {
+    margin-bottom: 1.5rem;
+    font-size: 1.85rem;
+    font-weight: bold;
+    color: #333;
+}
+
+.menu-grid {
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 0 0 1px rgba(20,20,31,.05), 0 1px 3px 0 rgba(20,20,31,.15);
+    background-color: white;
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    gap: 1.5rem;
+}
+
+.menu-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem 1rem;
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: white;
+    min-height: 150px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.menu-button.open-account {
+    background-color: #346cb0;
+}
+
+.menu-button.open-account:hover:not(:disabled) {
+    background-color: #2b5a92;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.menu-button.accounts-but {
+    background-color: #28a745;
+}
+
+.menu-button.accounts-but:hover:not(:disabled) {
+    background-color: #218838;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.menu-button.credit {
+    background-color: #ffc107;
+}
+
+.menu-button.credit:hover:not(:disabled) {
+    background-color: #e0a800;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.menu-button.my-credits {
+    background-color: #17a2b8;
+}
+
+.menu-button.my-credits:hover:not(:disabled) {
+    background-color: #138496;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.menu-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}

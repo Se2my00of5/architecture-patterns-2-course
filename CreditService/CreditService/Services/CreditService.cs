@@ -70,12 +70,6 @@ namespace CreditService.Services
         // Работа с кредитами
         public async Task<CreditResponseDto> ApplyForCreditAsync(ApplyForCreditDto dto)
         {
-            //// Проверяем существование клиента через API сервиса пользователей
-            //var clientExists = await CheckClientExistsAsync(dto.ClientId);
-            //if (!clientExists)
-            //{
-            //    throw new InvalidOperationException("Client not found");
-            //}
 
             // Получаем тариф
             var tariff = await _context.CreditTariffs.FindAsync(dto.TariffId);
@@ -98,7 +92,7 @@ namespace CreditService.Services
                 AccountId = dto.AccountId,
                 TariffId = dto.TariffId,
                 Amount = dto.Amount,
-                RemainingAmount = dto.Amount,
+                RemainingAmount = monthlyPayment * dto.TermInMonths,
                 MonthlyPayment = monthlyPayment,
                 StartDate = DateTime.UtcNow,
                 Status = CreditStatus.Active,
@@ -126,28 +120,6 @@ namespace CreditService.Services
             return cred;
         }
 
-        //public async Task<Credit?> GetCreditByIdAsync(Guid id)
-        //{
-        //    return await _context.Credits
-        //        .Include(c => c.Tariff)
-        //        .Include(c => c.Payments)
-        //        .FirstOrDefaultAsync(c => c.Id == id);
-        //}
-
-        //public async Task<IEnumerable<Credit>> GetClientCreditsAsync(Guid clientId)
-        //{
-        //    return await _context.Credits
-        //        .Include(c => c.Tariff)
-        //        .Where(c => c.ClientId == clientId)
-        //        .ToListAsync();
-        //}
-
-        //public async Task<IEnumerable<Credit>> GetAllCreditsAsync()
-        //{
-        //    return await _context.Credits
-        //        .Include(c => c.Tariff)
-        //        .ToListAsync();
-        //}
 
         public async Task<CreditInfoDto?> GetCreditByIdAsync(Guid id)
         {
@@ -215,10 +187,6 @@ namespace CreditService.Services
                 throw new InvalidOperationException("Credit not found");
             }
 
-            if (credit.Status != CreditStatus.Active)
-            {
-                throw new InvalidOperationException("Credit is not active");
-            }
 
             // Создаем платеж
             var payment = new CreditPayment
@@ -229,15 +197,14 @@ namespace CreditService.Services
                 PaymentDate = DateTime.UtcNow
             };
 
+
             // Отправляем запрос в ядро для списания средств
              var result = await NotifyCoreAboutPayment(dto.AccountId, credit.Id, dto.Amount);
 
             if (result)
             {
-                // Обновляем остаток
                 credit.RemainingAmount -= dto.Amount;
 
-                // Проверяем, погашен ли кредит полностью
                 if (credit.RemainingAmount <= 0)
                 {
                     credit.RemainingAmount = 0;
@@ -266,13 +233,6 @@ namespace CreditService.Services
             return paymentDto;
         }
 
-        //public async Task<IEnumerable<CreditPayment>> GetCreditPaymentsAsync(Guid creditId)
-        //{
-        //    return await _context.CreditPayments
-        //        .Where(p => p.CreditId == creditId)
-        //        .OrderByDescending(p => p.PaymentDate)
-        //        .ToListAsync();
-        //}
         public async Task<IEnumerable<CreditPaymentDto>> GetCreditPaymentsAsync(Guid creditId)
         {
             var payments = await _context.CreditPayments
@@ -304,39 +264,10 @@ namespace CreditService.Services
             return amount * monthlyRate * factor / (factor - 1);
         }
 
-        //public async Task ProcessDailyPaymentsAsync()
-        //{
-        //    var activeCredits = await _context.Credits
-        //        .Where(c => c.Status == CreditStatus.Active)
-        //        .ToListAsync();
-
-        //    foreach (var credit in activeCredits)
-        //    {
-
-        //        var payment = new MakePaymentDto
-        //        {
-        //            CreditId = credit.Id,
-        //            AccountId = credit.AccountId,
-        //            Amount = credit.MonthlyPayment / (30 * 24 * 60) // Ежеминутный платеж для теста
-        //        };
-
-        //        try
-        //        {
-
-        //            await MakePaymentAsync(payment);
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            credit.Status = CreditStatus.Overdue;
-        //            await _context.SaveChangesAsync();
-        //        }
-
-        //    }
-        //}
         public async Task ProcessDailyPaymentsAsync()
         {
             var activeCredits = await _context.Credits
-                .Where(c => c.Status == CreditStatus.Active)
+                .Where(c => c.Status == CreditStatus.Active || c.Status == CreditStatus.Overdue)
                 .ToListAsync();
 
             foreach (var credit in activeCredits)
@@ -359,6 +290,7 @@ namespace CreditService.Services
                     await _context.SaveChangesAsync();
                 }
             }
+
         }
 
         // Вспомогательные методы для взаимодействия с другими сервисами

@@ -139,24 +139,5 @@ namespace CreditService.Controllers
             return Ok(payments);
         }
 
-        ////принудительный запуск ежедневных платежей
-        //[HttpPost("process-daily")]
-        //[SwaggerOperation(Summary = "Ежеминутный платеж (делает единовременную оплату всех кредитов на сумму равную месячный_платеж/30*24*60)")]
-        //public async Task<IActionResult> ProcessDailyPayments()
-        //{
-        //    await _creditService.ProcessDailyPaymentsAsync();
-        //    return Ok(new { message = "Daily payments processed" });
-        //}
-
-        //// Расчет ежемесячного платежа
-        //[HttpGet("calculate-payment")]
-        //public async Task<ActionResult<decimal>> CalculateMonthlyPayment(
-        //    [FromQuery] decimal amount,
-        //    [FromQuery] decimal interestRate,
-        //    [FromQuery] int months)
-        //{
-        //    var payment = await _creditService.CalculateMonthlyPaymentAsync(amount, interestRate, months);
-        //    return Ok(new { monthlyPayment = payment });
-        //}
     }
 }

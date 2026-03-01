@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import { usersApi } from '../../api/users';
+import { useAuth } from '../../contexts/AuthContext';
 import CreateEmployeeModal from './CreateEmployeeModal';
 import './Employees.css';
 
 const Employees = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,7 +21,8 @@ const Employees = () => {
     setLoading(true);
     const result = await usersApi.getEmployees();
     if (result.success) {
-      setEmployees(result.data);
+      const filtered = result.data.filter(emp => emp.id !== user?.id);
+      setEmployees(filtered);
     } else {
       toast.error('Ошибка при загрузке списка сотрудников');
     }

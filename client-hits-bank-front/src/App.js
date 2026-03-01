@@ -12,73 +12,55 @@ import ClientCredits from './components/Credits/ClientCredits';
 
 import './App.css';
 
-const PrivateRoute = ({ children }) => {
-  const { isAuthenticated } = useAuth();
-  return isAuthenticated ? children : <Navigate to="/" />;
-};
-
-const AppContent = () => {
-  const { isAuthenticated, login } = useAuth();
-
-  const handleLoginSuccess = (userData) => {
-    login(userData);
-  };
-
-  return (
-    <Router>
-      <Routes>
-        <Route path="/" element={
-          isAuthenticated ? <Navigate to="/dashboard" /> : <Login onLoginSuccess={handleLoginSuccess} />
-        } />
-        <Route path="/dashboard" element={
-          <PrivateRoute>
-            <Dashboard />
-          </PrivateRoute>
-        } />
-        <Route path="/accounts" element={
-          <PrivateRoute>
-            <Accounts />
-          </PrivateRoute>
-        } />
-        <Route path="/accounts/:accountId/history" element={
-          <PrivateRoute>
-            <AccountHistory />
-          </PrivateRoute>
-        } />
-        <Route path="/credit" element={
-          <PrivateRoute>
-            <Credits />
-          </PrivateRoute>
-        } />
-        <Route path="/client-credits" element={
-          <PrivateRoute>
-            <ClientCredits />
-          </PrivateRoute>
-        } />
-      </Routes>
-    </Router>
-  );
-};
-
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-      <ToastContainer 
-        position="bottom-right"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="colored"
-        style={{ bottom: '1rem', right: '1rem' }}
-      />
-    </AuthProvider>
+    <Router>
+      <AuthProvider>
+        <AppContent />
+        <ToastContainer 
+          position="bottom-right"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="colored"
+        />
+      </AuthProvider>
+    </Router>
   );
 }
+
+const AppContent = () => {
+  const { user, login } = useAuth();
+    
+    const handleLoginSuccess = (userData) => {
+      login(userData);
+    };
+    
+  
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="*" element={<Login onLoginSuccess={handleLoginSuccess} />} />
+      </Routes>
+    );
+  }
+
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/dashboard" />} />
+      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/accounts" element={<Accounts />} />
+      <Route path="/accounts/:accountId/history" element={<AccountHistory />} />
+      <Route path="/credit" element={<Credits />} />
+      <Route path="/client-credits" element={<ClientCredits />} />
+      <Route path="*" element={<Navigate to="/dashboard" />} />
+    </Routes>
+  );
+};
 
 export default App;

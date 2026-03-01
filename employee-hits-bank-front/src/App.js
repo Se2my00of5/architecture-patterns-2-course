@@ -14,83 +14,56 @@ import ClientCredits from './components/Clients/ClientCredits';
 
 import './App.css';
 
-const PrivateRoute = ({ children }) => {
-  const { isAuthenticated } = useAuth();
-  return isAuthenticated ? children : <Navigate to="/" />;
-};
+function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <AppContent />
+        <ToastContainer 
+          position="bottom-right"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="colored"
+        />
+      </AuthProvider>
+    </Router>
+  );
+}
 
 const AppContent = () => {
-  const { isAuthenticated, login } = useAuth();
-
+  const { user, login } = useAuth();
+  
   const handleLoginSuccess = (userData) => {
     login(userData);
   };
+  
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="*" element={<Login onLoginSuccess={handleLoginSuccess} />} />
+      </Routes>
+    );
+  }
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={
-          isAuthenticated ? <Navigate to="/dashboard" /> : <Login onLoginSuccess={handleLoginSuccess} />
-        } />
-        <Route path="/dashboard" element={
-          <PrivateRoute>
-            <Dashboard />
-          </PrivateRoute>
-        } />
-        <Route path="/clients" element={
-          <PrivateRoute>
-            <Clients />
-          </PrivateRoute>
-        } />
-        <Route path="/clients/:clientId/accounts" element={
-          <PrivateRoute>
-            <ClientAccounts />
-          </PrivateRoute>
-        } />
-        <Route path="/clients/:clientId/accounts/:accountId/history" element={
-          <PrivateRoute>
-            <AccountHistory />
-          </PrivateRoute>
-        } />
-        <Route path="/clients/:clientId/credits" element={
-          <PrivateRoute>
-            <ClientCredits />
-          </PrivateRoute>
-        } />
-        <Route path="/employees" element={
-          <PrivateRoute>
-            <Employees />
-          </PrivateRoute>
-        } />
-        <Route path="/tariffs" element={
-          <PrivateRoute>
-            <Tariffs />
-          </PrivateRoute>
-        } />
-      </Routes>
-    </Router>
+    <Routes>
+      <Route path="/" element={<Navigate to="/dashboard" />} />
+      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/clients" element={<Clients />} />
+      <Route path="/clients/:clientId/accounts" element={<ClientAccounts />} />
+      <Route path="/clients/:clientId/accounts/:accountId/history" element={<AccountHistory />} />
+      <Route path="/clients/:clientId/credits" element={<ClientCredits />} />
+      <Route path="/employees" element={<Employees />} />
+      <Route path="/tariffs" element={<Tariffs />} />
+      <Route path="*" element={<Navigate to="/dashboard" />} />
+    </Routes>
   );
 };
-
-function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-      <ToastContainer 
-        position="bottom-right"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="colored"
-        style={{ bottom: '1rem', right: '1rem' }}
-      />
-    </AuthProvider>
-  );
-}
 
 export default App;

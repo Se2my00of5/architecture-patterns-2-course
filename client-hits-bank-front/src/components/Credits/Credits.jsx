@@ -100,7 +100,7 @@ const Credits = () => {
       style: 'currency',
       currency: 'RUB',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 2
     }).format(value);
   };
 
@@ -173,6 +173,7 @@ const Credits = () => {
               <input
                 type="number"
                 min="1000"
+                step="0.01"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="Например: 1000000"
@@ -185,6 +186,7 @@ const Credits = () => {
               <input
                 type="number"
                 min="1"
+                step="1"
                 value={term}
                 onChange={(e) => setTerm(e.target.value)}
                 placeholder="Например: 12"

@@ -95,6 +95,7 @@ namespace CreditService.Services
             {
                 Id = Guid.NewGuid(),
                 ClientId = dto.ClientId,
+                AccountId = dto.AccountId,
                 TariffId = dto.TariffId,
                 Amount = dto.Amount,
                 RemainingAmount = dto.Amount,
@@ -189,6 +190,7 @@ namespace CreditService.Services
             {
                 Id = credit.Id,
                 ClientId = credit.ClientId,
+                AccountId = credit.AccountId,
                 TariffName = credit.Tariff?.Name ?? "Unknown",
                 InterestRate = credit.Tariff?.InterestRate ?? 0,
                 Amount = credit.Amount,
@@ -243,7 +245,7 @@ namespace CreditService.Services
             await _context.SaveChangesAsync();
 
             // Отправляем запрос в ядро для списания средств
-            await NotifyCoreAboutPayment(credit.ClientId, credit.Id, dto.Amount);
+            await NotifyCoreAboutPayment(dto.AccountId, credit.Id, dto.Amount);
 
             var paymentDto = new CreditPaymentDto
             {
@@ -309,6 +311,7 @@ namespace CreditService.Services
                 var payment = new MakePaymentDto
                 {
                     CreditId = credit.Id,
+                    AccountId = credit.AccountId,
                     Amount = credit.MonthlyPayment / (30 * 24 * 60), // Ежеминутный платеж для теста
                     Type = PaymentType.Scheduled
                 };
@@ -328,19 +331,19 @@ namespace CreditService.Services
         }
 
         // Вспомогательные методы для взаимодействия с другими сервисами
-        private async Task<bool> CheckClientExistsAsync(Guid clientId)
-        {
-            try
-            {
-                // Запрос к сервису пользователей
-                var response = await _httpClient.GetAsync($"http://user-service/api/users/{clientId}");
-                return response.IsSuccessStatusCode;
-            }
-            catch
-            {
-                return false; 
-            }
-        }
+        //private async Task<bool> CheckClientExistsAsync(Guid clientId)
+        //{
+        //    try
+        //    {
+        //        // Запрос к сервису пользователей
+        //        var response = await _httpClient.GetAsync($"http://user-service/api/users/{clientId}");
+        //        return response.IsSuccessStatusCode;
+        //    }
+        //    catch
+        //    {
+        //        return false; 
+        //    }
+        //}
 
         //private async Task NotifyCoreAboutCreditIssuance(Credit credit)
         //{
@@ -366,7 +369,7 @@ namespace CreditService.Services
                     amount = credit.Amount
                 };
 
-                string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-disbursement", credit.ClientId);
+                string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-disbursement", credit.AccountId);
 
                 // Отправляем запрос и получаем ответ
                 var response = await _httpClient.PostAsJsonAsync(url, request);
@@ -403,7 +406,7 @@ namespace CreditService.Services
         }
 
 
-        private async Task NotifyCoreAboutPayment(Guid clientId, Guid id, decimal amount_)
+        private async Task NotifyCoreAboutPayment(Guid accountId, Guid id, decimal amount_)
         {
             var request = new
             {
@@ -411,7 +414,7 @@ namespace CreditService.Services
                 amount = amount_
             };
 
-            string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-repayment", clientId);
+            string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-repayment", accountId);
             await _httpClient.PostAsJsonAsync(url, request);
 
 

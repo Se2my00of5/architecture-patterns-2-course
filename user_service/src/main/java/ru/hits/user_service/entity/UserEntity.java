@@ -43,6 +43,9 @@ public class UserEntity {
     private String login;
 
     @Column(nullable = false)
+    private String passwordHash;
+
+    @Column(nullable = false)
     private String fullName;
 
     @ElementCollection(fetch = FetchType.EAGER)

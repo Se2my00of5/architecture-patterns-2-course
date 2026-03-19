@@ -14,6 +14,14 @@ java {
     }
 }
 
+sourceSets {
+    main {
+        java {
+            srcDirs += ['../shared_security/src/main/java']
+        }
+    }
+}
+
 configurations {
     compileOnly {
         extendsFrom annotationProcessor

@@ -12,3 +12,7 @@ spring:
 
 server:
   port: 1111
+
+security:
+  jwt:
+    public-key: ${JWT_PUBLIC_KEY:}

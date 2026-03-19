@@ -12,4 +12,9 @@ spring:
 server:
   port: 1115
 
+security:
+  jwt:
+    public-key: ${JWT_PUBLIC_KEY:}
+    private-key: ${JWT_PRIVATE_KEY:}
+
 

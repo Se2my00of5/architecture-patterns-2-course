@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile
     container_name: user-service-backend
     restart: unless-stopped
+    env_file:
+      - ../.env
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://user_service_db:5432/user_service_db
     ports:

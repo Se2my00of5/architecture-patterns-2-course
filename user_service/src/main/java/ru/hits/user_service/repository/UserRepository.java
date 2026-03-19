@@ -7,6 +7,7 @@ import ru.hits.user_service.entity.enums.UserRole;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Repository
@@ -14,7 +15,7 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
 
     Optional<UserEntity> findByLogin(String login);
 
-    List<UserEntity> findAllByRole(UserRole role);
+    List<UserEntity> findAllByRolesContaining(UserRole role);
 
     boolean existsByLogin(String login);
 

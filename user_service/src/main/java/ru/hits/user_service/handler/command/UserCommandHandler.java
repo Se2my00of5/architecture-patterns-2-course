@@ -2,6 +2,7 @@ package ru.hits.user_service.handler.command;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.hits.user_service.dto.request.CreateUserRequest;
@@ -22,17 +23,19 @@ public class UserCommandHandler {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserResponse createUser(CreateUserRequest command) {;
+    public UserResponse createUser(CreateUserRequest command) {
         if (userRepository.existsByLogin(command.getLogin())) {
             throw new LoginAlreadyExistsException(command.getLogin());
         }
 
         UserEntity entity = userMapper.toEntity(command);
+        entity.setPasswordHash(passwordEncoder.encode(command.getPassword()));
         entity.setIsBlocked(false);
 
         UserEntity saved = userRepository.save(entity);
-        
+
         log.debug("Пользователь создан: id={}, login={}", saved.getId(), saved.getLogin());
         return userMapper.toResponse(saved);
     }

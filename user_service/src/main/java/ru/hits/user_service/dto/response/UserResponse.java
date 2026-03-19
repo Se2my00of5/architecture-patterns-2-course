@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import ru.hits.user_service.entity.enums.UserRole;
 
 import java.time.Instant;
+import java.util.Set;
 import java.util.UUID;
 
 @Data
@@ -26,8 +27,8 @@ public class UserResponse {
     @Schema(description = "Полное имя")
     private String fullName;
 
-    @Schema(description = "Роль")
-    private UserRole role;
+    @Schema(description = "Роли")
+    private Set<UserRole> roles;
 
     @Schema(description = "Заблокирован ли пользователь")
     private Boolean isBlocked;

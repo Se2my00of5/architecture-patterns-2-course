@@ -41,7 +41,7 @@ public class UserQueryHandler {
     }
 
     public List<UserShortResponse> getUsersByRole(UserRole role) {
-        return userRepository.findAllByRole(role).stream()
+        return userRepository.findAllByRolesContaining(role).stream()
                 .map(userMapper::toShortResponse)
                 .toList();
     }

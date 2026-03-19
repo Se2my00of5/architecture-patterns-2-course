@@ -23,7 +23,7 @@ public class UserCommandHandler {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
 
-    public UserResponse createUser(CreateUserRequest command) {;
+    public UserResponse createUser(CreateUserRequest command) {
         if (userRepository.existsByLogin(command.getLogin())) {
             throw new LoginAlreadyExistsException(command.getLogin());
         }
@@ -32,7 +32,7 @@ public class UserCommandHandler {
         entity.setIsBlocked(false);
 
         UserEntity saved = userRepository.save(entity);
-        
+
         log.debug("Пользователь создан: id={}, login={}", saved.getId(), saved.getLogin());
         return userMapper.toResponse(saved);
     }

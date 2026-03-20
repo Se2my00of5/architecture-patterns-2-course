@@ -15,6 +15,7 @@ import ru.hits.core_service.dto.request.DepositRequest;
 import ru.hits.core_service.dto.request.LoanDisbursementRequest;
 import ru.hits.core_service.dto.request.LoanRepaymentRequest;
 import ru.hits.core_service.dto.request.OpenAccountRequest;
+import ru.hits.core_service.dto.request.TransferRequest;
 import ru.hits.core_service.dto.request.WithdrawRequest;
 import ru.hits.core_service.dto.response.AccountResponse;
 import ru.hits.core_service.handler.command.AccountCommandHandler;
@@ -60,6 +61,15 @@ public class AccountCommandController {
             @PathVariable UUID accountId, @Valid @RequestBody WithdrawRequest request
     ) {
         return commandHandler.withdraw(accountId, request);
+    }
+
+    @PostMapping("/{accountId}/transfer")
+    @Operation(summary = "Перевести деньги на другой счёт")
+    @ResponseStatus(HttpStatus.OK)
+    public AccountResponse transfer(
+            @PathVariable UUID accountId, @Valid @RequestBody TransferRequest request
+    ) {
+        return commandHandler.transfer(accountId, request);
     }
 
     @PostMapping("/{accountId}/loan-disbursement")

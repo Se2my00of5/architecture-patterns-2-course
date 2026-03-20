@@ -5,6 +5,10 @@ public enum OperationType {
     DEPOSIT,
     WITHDRAWAL,
 
+    // для переводов
+    TRANSFER_OUT,
+    TRANSFER_IN,
+
     // для кредитов
     LOAN_DISBURSEMENT,
     LOAN_REPAYMENT

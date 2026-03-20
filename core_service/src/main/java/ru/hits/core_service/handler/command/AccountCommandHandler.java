@@ -8,6 +8,7 @@ import ru.hits.core_service.dto.request.DepositRequest;
 import ru.hits.core_service.dto.request.LoanDisbursementRequest;
 import ru.hits.core_service.dto.request.LoanRepaymentRequest;
 import ru.hits.core_service.dto.request.OpenAccountRequest;
+import ru.hits.core_service.dto.request.TransferRequest;
 import ru.hits.core_service.dto.request.WithdrawRequest;
 import ru.hits.core_service.dto.response.AccountResponse;
 import ru.hits.core_service.entity.AccountEntity;
@@ -117,6 +118,53 @@ public class AccountCommandHandler {
         operationRepository.save(operation);
 
         return accountMapper.toResponse(account);
+    }
+
+    /**
+     * Перевести деньги со счёта на счёт.
+     * Поддерживаются переводы как между своими счетами, так и на чужие счета.
+     */
+    public AccountResponse transfer(UUID accountId, TransferRequest command) {
+        log.debug("transfer: fromAccountId={}, toAccountId={}, amount={}, desc={}",
+                accountId, command.getTargetAccountId(), command.getAmount(), command.getDescription());
+
+        if (accountId.equals(command.getTargetAccountId())) {
+            throw new BusinessException("Нельзя выполнить перевод на тот же счёт: " + accountId);
+        }
+
+        AccountEntity sourceAccount = findActiveAccountOrThrow(accountId);
+        AccountEntity targetAccount = findActiveAccountOrThrow(command.getTargetAccountId());
+
+        if (sourceAccount.getBalance().compareTo(command.getAmount()) < 0) {
+            throw new BusinessException("Недостаточно средств на счёте: " + accountId);
+        }
+
+        sourceAccount.setBalance(sourceAccount.getBalance().subtract(command.getAmount()));
+        targetAccount.setBalance(targetAccount.getBalance().add(command.getAmount()));
+        accountRepository.save(sourceAccount);
+        accountRepository.save(targetAccount);
+
+        String description = command.getDescription() != null && !command.getDescription().isBlank()
+                ? command.getDescription()
+                : "Перевод средств";
+
+        OperationEntity transferOutOperation = OperationEntity.builder()
+                .account(sourceAccount)
+                .type(OperationType.TRANSFER_OUT)
+                .amount(command.getAmount())
+                .description(description + ". Получатель: " + targetAccount.getId())
+                .build();
+        operationRepository.save(transferOutOperation);
+
+        OperationEntity transferInOperation = OperationEntity.builder()
+                .account(targetAccount)
+                .type(OperationType.TRANSFER_IN)
+                .amount(command.getAmount())
+                .description(description + ". Отправитель: " + sourceAccount.getId())
+                .build();
+        operationRepository.save(transferInOperation);
+
+        return accountMapper.toResponse(sourceAccount);
     }
 
     /**

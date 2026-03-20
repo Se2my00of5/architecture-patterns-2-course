@@ -20,6 +20,7 @@ import ru.hits.core_service.exception.BusinessException;
 import ru.hits.core_service.exception.NotFoundException;
 import ru.hits.core_service.integration.UserServiceClient;
 import ru.hits.core_service.mapper.AccountMapper;
+import ru.hits.core_service.mapper.MoneyMapper;
 import ru.hits.core_service.repository.AccountRepository;
 import ru.hits.core_service.repository.OperationRepository;
 
@@ -36,6 +37,7 @@ public class AccountCommandHandler {
     private final AccountRepository accountRepository;
     private final OperationRepository operationRepository;
     private final AccountMapper accountMapper;
+    private final MoneyMapper moneyMapper;
     private final UserServiceClient userServiceClient;
 
     /**
@@ -48,7 +50,7 @@ public class AccountCommandHandler {
 
         AccountEntity account = AccountEntity.builder()
                 .userId(command.getUserId())
-                .balance(BigDecimal.ZERO)
+            .balance(0L)
                 .status(AccountStatus.ACTIVE)
                 .build();
         return accountMapper.toResponse(accountRepository.save(account));
@@ -65,7 +67,7 @@ public class AccountCommandHandler {
             throw new BusinessException("Счёт уже закрыт: " + accountId);
         }
 
-        if (account.getBalance().compareTo(BigDecimal.ZERO) != 0) {
+        if (account.getBalance() != 0L) {
             throw new BusinessException("Невозможно закрыть счёт с ненулевым балансом: " + accountId);
         }
 
@@ -80,14 +82,15 @@ public class AccountCommandHandler {
     public AccountResponse deposit(UUID accountId, DepositRequest command) {
         log.debug("deposit: accountId={}, amount={}, desc={}", accountId, command.getAmount(), command.getDescription());
         AccountEntity account = findActiveAccountOrThrow(accountId);
+        long amountInKopecks = toKopecks(command.getAmount());
 
-        account.setBalance(account.getBalance().add(command.getAmount()));
+        account.setBalance(addAmounts(account.getBalance(), amountInKopecks));
         accountRepository.save(account);
 
         OperationEntity operation = OperationEntity.builder()
                 .account(account)
                 .type(OperationType.DEPOSIT)
-                .amount(command.getAmount())
+            .amount(amountInKopecks)
                 .description(command.getDescription() != null ? command.getDescription() : "Внесение средств на счёт")
                 .build();
         operationRepository.save(operation);
@@ -101,18 +104,19 @@ public class AccountCommandHandler {
     public AccountResponse withdraw(UUID accountId, WithdrawRequest command) {
         log.debug("withdraw: accountId={}, amount={}, desc={}", accountId, command.getAmount(), command.getDescription());
         AccountEntity account = findActiveAccountOrThrow(accountId);
+        long amountInKopecks = toKopecks(command.getAmount());
 
-        if (account.getBalance().compareTo(command.getAmount()) < 0) {
+        if (account.getBalance() < amountInKopecks) {
             throw new BusinessException("Недостаточно средств на счёте: " + accountId);
         }
 
-        account.setBalance(account.getBalance().subtract(command.getAmount()));
+        account.setBalance(subtractAmounts(account.getBalance(), amountInKopecks));
         accountRepository.save(account);
 
         OperationEntity operation = OperationEntity.builder()
                 .account(account)
                 .type(OperationType.WITHDRAWAL)
-                .amount(command.getAmount())
+            .amount(amountInKopecks)
                 .description(command.getDescription() != null ? command.getDescription() : "Снятие средств со счёта")
                 .build();
         operationRepository.save(operation);
@@ -127,6 +131,7 @@ public class AccountCommandHandler {
     public AccountResponse transfer(UUID accountId, TransferRequest command) {
         log.debug("transfer: fromAccountId={}, toAccountId={}, amount={}, desc={}",
                 accountId, command.getTargetAccountId(), command.getAmount(), command.getDescription());
+        long amountInKopecks = toKopecks(command.getAmount());
 
         if (accountId.equals(command.getTargetAccountId())) {
             throw new BusinessException("Нельзя выполнить перевод на тот же счёт: " + accountId);
@@ -135,12 +140,12 @@ public class AccountCommandHandler {
         AccountEntity sourceAccount = findActiveAccountOrThrow(accountId);
         AccountEntity targetAccount = findActiveAccountOrThrow(command.getTargetAccountId());
 
-        if (sourceAccount.getBalance().compareTo(command.getAmount()) < 0) {
+        if (sourceAccount.getBalance() < amountInKopecks) {
             throw new BusinessException("Недостаточно средств на счёте: " + accountId);
         }
 
-        sourceAccount.setBalance(sourceAccount.getBalance().subtract(command.getAmount()));
-        targetAccount.setBalance(targetAccount.getBalance().add(command.getAmount()));
+        sourceAccount.setBalance(subtractAmounts(sourceAccount.getBalance(), amountInKopecks));
+        targetAccount.setBalance(addAmounts(targetAccount.getBalance(), amountInKopecks));
         accountRepository.save(sourceAccount);
         accountRepository.save(targetAccount);
 
@@ -151,7 +156,7 @@ public class AccountCommandHandler {
         OperationEntity transferOutOperation = OperationEntity.builder()
                 .account(sourceAccount)
                 .type(OperationType.TRANSFER_OUT)
-                .amount(command.getAmount())
+            .amount(amountInKopecks)
                 .description(description + ". Получатель: " + targetAccount.getId())
                 .build();
         operationRepository.save(transferOutOperation);
@@ -159,7 +164,7 @@ public class AccountCommandHandler {
         OperationEntity transferInOperation = OperationEntity.builder()
                 .account(targetAccount)
                 .type(OperationType.TRANSFER_IN)
-                .amount(command.getAmount())
+            .amount(amountInKopecks)
                 .description(description + ". Отправитель: " + sourceAccount.getId())
                 .build();
         operationRepository.save(transferInOperation);
@@ -173,14 +178,15 @@ public class AccountCommandHandler {
     public AccountResponse loanDisbursement(UUID accountId, LoanDisbursementRequest command) {
         log.debug("loanDisbursement: accountId={}, creditId={}, amount={}", accountId, command.getCreditId(), command.getAmount());
         AccountEntity account = findActiveAccountOrThrow(accountId);
+        long amountInKopecks = toKopecks(command.getAmount());
 
-        account.setBalance(account.getBalance().add(command.getAmount()));
+        account.setBalance(addAmounts(account.getBalance(), amountInKopecks));
         accountRepository.save(account);
 
         LoanOperationEntity operation = LoanOperationEntity.builder()
                 .account(account)
                 .type(OperationType.LOAN_DISBURSEMENT)
-                .amount(command.getAmount())
+            .amount(amountInKopecks)
                 .description(command.getDescription() != null ? command.getDescription() : "Выдача кредита")
                 .creditId(command.getCreditId())
                 .build();
@@ -195,18 +201,19 @@ public class AccountCommandHandler {
     public AccountResponse loanRepayment(UUID accountId, LoanRepaymentRequest command) {
         log.debug("loanRepayment: accountId={}, creditId={}, amount={}", accountId, command.getCreditId(), command.getAmount());
         AccountEntity account = findActiveAccountOrThrow(accountId);
+        long amountInKopecks = toKopecks(command.getAmount());
 
-        if (account.getBalance().compareTo(command.getAmount()) < 0) {
+        if (account.getBalance() < amountInKopecks) {
             throw new BusinessException("Недостаточно средств для погашения кредита на счёте: " + accountId);
         }
 
-        account.setBalance(account.getBalance().subtract(command.getAmount()));
+        account.setBalance(subtractAmounts(account.getBalance(), amountInKopecks));
         accountRepository.save(account);
 
         LoanOperationEntity operation = LoanOperationEntity.builder()
                 .account(account)
                 .type(OperationType.LOAN_REPAYMENT)
-                .amount(command.getAmount())
+            .amount(amountInKopecks)
                 .description(command.getDescription() != null ? command.getDescription() : "Погашение кредита")
                 .creditId(command.getCreditId())
                 .build();
@@ -226,5 +233,33 @@ public class AccountCommandHandler {
             throw new BusinessException("Счёт закрыт: " + accountId);
         }
         return account;
+    }
+
+    private long toKopecks(BigDecimal amount) {
+        try {
+            Long amountInKopecks = moneyMapper.rublesToKopecks(amount);
+            if (amountInKopecks == null) {
+                throw new BusinessException("Сумма обязательна");
+            }
+            return amountInKopecks;
+        } catch (ArithmeticException e) {
+            throw new BusinessException("Некорректный формат суммы");
+        }
+    }
+
+    private long addAmounts(long left, long right) {
+        try {
+            return Math.addExact(left, right);
+        } catch (ArithmeticException e) {
+            throw new BusinessException("Переполнение при расчёте суммы");
+        }
+    }
+
+    private long subtractAmounts(long left, long right) {
+        try {
+            return Math.subtractExact(left, right);
+        } catch (ArithmeticException e) {
+            throw new BusinessException("Переполнение при расчёте суммы");
+        }
     }
 }

@@ -9,7 +9,7 @@ import ru.hits.core_service.entity.OperationEntity;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = MoneyMapper.class)
 public interface OperationMapper {
 
     @Mapping(source = "account.id", target = "accountId")

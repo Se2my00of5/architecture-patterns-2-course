@@ -1,6 +1,7 @@
 package ru.hits.core_service.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.Data;
@@ -18,6 +19,7 @@ public class LoanDisbursementRequest {
 
     @NotNull(message = "Сумма обязательна")
     @Positive(message = "Сумма должна быть положительной")
+    @Digits(integer = 17, fraction = 2, message = "Сумма должна содержать не более 2 знаков после запятой")
     @Schema(description = "Сумма кредита", example = "50000.00")
     private BigDecimal amount;
 

@@ -5,7 +5,6 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 import ru.hits.core_service.entity.enums.OperationType;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -31,8 +30,8 @@ public class OperationEntity {
     @Column(nullable = false)
     private OperationType type;
 
-    @Column(nullable = false, precision = 19, scale = 2)
-    private BigDecimal amount;
+    @Column(nullable = false)
+    private Long amount;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;

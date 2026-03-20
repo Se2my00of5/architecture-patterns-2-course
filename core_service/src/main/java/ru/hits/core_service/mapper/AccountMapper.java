@@ -6,7 +6,7 @@ import ru.hits.core_service.entity.AccountEntity;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = MoneyMapper.class)
 public interface AccountMapper {
 
     AccountResponse toResponse(AccountEntity entity);

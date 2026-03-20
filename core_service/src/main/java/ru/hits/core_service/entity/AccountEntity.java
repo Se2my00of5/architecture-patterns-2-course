@@ -4,7 +4,6 @@ import jakarta.persistence.*;
 import lombok.*;
 import ru.hits.core_service.entity.enums.AccountStatus;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -24,8 +23,8 @@ public class AccountEntity {
     @Column(nullable = false)
     private UUID userId;
 
-    @Column(nullable = false, precision = 19, scale = 2)
-    private BigDecimal balance;
+    @Column(nullable = false)
+    private Long balance;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -40,7 +39,7 @@ public class AccountEntity {
     public void prePersist() {
         createdAt = LocalDateTime.now();
         if (balance == null) {
-            balance = BigDecimal.ZERO;
+            balance = 0L;
         }
         if (status == null) {
             status = AccountStatus.ACTIVE;

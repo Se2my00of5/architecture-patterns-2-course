@@ -1,6 +1,8 @@
 package ru.hits.core_service.exception;
 
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -28,6 +30,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleBusiness(BusinessException ex) {
         log.debug("BusinessException: {}", ex.getMessage());
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler({PessimisticLockingFailureException.class, CannotAcquireLockException.class})
+    public ResponseEntity<ErrorResponse> handleLockConflict(Exception ex) {
+        log.debug("Lock conflict: {}", ex.getMessage());
+        return buildResponse(HttpStatus.CONFLICT, "Счёт сейчас занят другой операцией, повторите запрос");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

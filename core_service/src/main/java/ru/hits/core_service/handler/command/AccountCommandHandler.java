@@ -25,6 +25,8 @@ import ru.hits.core_service.repository.AccountRepository;
 import ru.hits.core_service.repository.OperationRepository;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
+import java.util.List;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -61,11 +63,7 @@ public class AccountCommandHandler {
      * Проверка активных кредитов — ответственность сервиса кредитов.
      */
     public AccountResponse closeAccount(UUID accountId) {
-        AccountEntity account = findAccountOrThrow(accountId);
-
-        if (account.getStatus() == AccountStatus.CLOSED) {
-            throw new BusinessException("Счёт уже закрыт: " + accountId);
-        }
+        AccountEntity account = findActiveAccountForUpdateOrThrow(accountId);
 
         if (account.getBalance() != 0L) {
             throw new BusinessException("Невозможно закрыть счёт с ненулевым балансом: " + accountId);
@@ -81,7 +79,7 @@ public class AccountCommandHandler {
      */
     public AccountResponse deposit(UUID accountId, DepositRequest command) {
         log.debug("deposit: accountId={}, amount={}, desc={}", accountId, command.getAmount(), command.getDescription());
-        AccountEntity account = findActiveAccountOrThrow(accountId);
+        AccountEntity account = findActiveAccountForUpdateOrThrow(accountId);
         long amountInKopecks = toKopecks(command.getAmount());
 
         account.setBalance(addAmounts(account.getBalance(), amountInKopecks));
@@ -103,14 +101,10 @@ public class AccountCommandHandler {
      */
     public AccountResponse withdraw(UUID accountId, WithdrawRequest command) {
         log.debug("withdraw: accountId={}, amount={}, desc={}", accountId, command.getAmount(), command.getDescription());
-        AccountEntity account = findActiveAccountOrThrow(accountId);
+        AccountEntity account = findActiveAccountForUpdateOrThrow(accountId);
         long amountInKopecks = toKopecks(command.getAmount());
 
-        if (account.getBalance() < amountInKopecks) {
-            throw new BusinessException("Недостаточно средств на счёте: " + accountId);
-        }
-
-        account.setBalance(subtractAmounts(account.getBalance(), amountInKopecks));
+        account.setBalance(decreaseBalance(account, amountInKopecks));
         accountRepository.save(account);
 
         OperationEntity operation = OperationEntity.builder()
@@ -137,14 +131,20 @@ public class AccountCommandHandler {
             throw new BusinessException("Нельзя выполнить перевод на тот же счёт: " + accountId);
         }
 
-        AccountEntity sourceAccount = findActiveAccountOrThrow(accountId);
-        AccountEntity targetAccount = findActiveAccountOrThrow(command.getTargetAccountId());
 
-        if (sourceAccount.getBalance() < amountInKopecks) {
-            throw new BusinessException("Недостаточно средств на счёте: " + accountId);
-        }
+        // Cортировка ID для предотвращения дедлоков при одновременных переводах между одними и теми же счетами в разных направлениях
+        // Если поток A лочит сначала A, потом B, а поток B — сначала B, потом A, то может возникнуть дедлок.
+        List<UUID> accountIdsToLock = List.of(accountId, command.getTargetAccountId()).stream()
+                .sorted(Comparator.naturalOrder())
+                .toList();
 
-        sourceAccount.setBalance(subtractAmounts(sourceAccount.getBalance(), amountInKopecks));
+        AccountEntity firstLocked = findActiveAccountForUpdateOrThrow(accountIdsToLock.get(0));
+        AccountEntity secondLocked = findActiveAccountForUpdateOrThrow(accountIdsToLock.get(1));
+
+        AccountEntity sourceAccount = firstLocked.getId().equals(accountId) ? firstLocked : secondLocked;
+        AccountEntity targetAccount = firstLocked.getId().equals(command.getTargetAccountId()) ? firstLocked : secondLocked;
+
+        sourceAccount.setBalance(decreaseBalance(sourceAccount, amountInKopecks));
         targetAccount.setBalance(addAmounts(targetAccount.getBalance(), amountInKopecks));
         accountRepository.save(sourceAccount);
         accountRepository.save(targetAccount);
@@ -177,7 +177,7 @@ public class AccountCommandHandler {
      */
     public AccountResponse loanDisbursement(UUID accountId, LoanDisbursementRequest command) {
         log.debug("loanDisbursement: accountId={}, creditId={}, amount={}", accountId, command.getCreditId(), command.getAmount());
-        AccountEntity account = findActiveAccountOrThrow(accountId);
+        AccountEntity account = findActiveAccountForUpdateOrThrow(accountId);
         long amountInKopecks = toKopecks(command.getAmount());
 
         account.setBalance(addAmounts(account.getBalance(), amountInKopecks));
@@ -200,14 +200,10 @@ public class AccountCommandHandler {
      */
     public AccountResponse loanRepayment(UUID accountId, LoanRepaymentRequest command) {
         log.debug("loanRepayment: accountId={}, creditId={}, amount={}", accountId, command.getCreditId(), command.getAmount());
-        AccountEntity account = findActiveAccountOrThrow(accountId);
+        AccountEntity account = findActiveAccountForUpdateOrThrow(accountId);
         long amountInKopecks = toKopecks(command.getAmount());
 
-        if (account.getBalance() < amountInKopecks) {
-            throw new BusinessException("Недостаточно средств для погашения кредита на счёте: " + accountId);
-        }
-
-        account.setBalance(subtractAmounts(account.getBalance(), amountInKopecks));
+        account.setBalance(decreaseBalance(account, amountInKopecks));
         accountRepository.save(account);
 
         LoanOperationEntity operation = LoanOperationEntity.builder()
@@ -222,17 +218,26 @@ public class AccountCommandHandler {
         return accountMapper.toResponse(account);
     }
 
-    private AccountEntity findAccountOrThrow(UUID accountId) {
-        return accountRepository.findById(accountId)
-                .orElseThrow(() -> new NotFoundException("Счёт не найден: " + accountId));
+    private AccountEntity findActiveAccountForUpdateOrThrow(UUID accountId) {
+        AccountEntity account = accountRepository.findByIdForUpdate(accountId)
+            .orElseThrow(() -> new NotFoundException("Счёт не найден: " + accountId));
+
+        if (account.getStatus() == AccountStatus.CLOSED) {
+            throw new BusinessException("Счёт закрыт: " + account.getId());
+        }
+
+        return account;
     }
 
-    private AccountEntity findActiveAccountOrThrow(UUID accountId) {
-        AccountEntity account = findAccountOrThrow(accountId);
-        if (account.getStatus() == AccountStatus.CLOSED) {
-            throw new BusinessException("Счёт закрыт: " + accountId);
+    private long decreaseBalance(AccountEntity account, long amountInKopecks) {
+        if (account.getBalance() < amountInKopecks) {
+            throw new BusinessException("Недостаточно средств на счёте: " + account.getId());
         }
-        return account;
+        long result = subtractAmounts(account.getBalance(), amountInKopecks);
+        if (result < 0) {
+            throw new BusinessException("Операция привела бы к отрицательному балансу: " + account.getId());
+        }
+        return result;
     }
 
     private long toKopecks(BigDecimal amount) {

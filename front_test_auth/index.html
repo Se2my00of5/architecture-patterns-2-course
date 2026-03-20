@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Auth Test Front</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 24px;
+      max-width: 920px;
+    }
+
+    h1 {
+      margin-bottom: 8px;
+    }
+
+    .hint {
+      color: #555;
+      margin-bottom: 16px;
+    }
+
+    .panel {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+      color: #333;
+    }
+
+    input {
+      width: 100%;
+      max-width: 560px;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    button {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      cursor: pointer;
+      background: #f6f6f6;
+    }
+
+    button.primary {
+      background: #0d6efd;
+      color: white;
+      border-color: #0d6efd;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #f7f7f7;
+      border: 1px solid #eee;
+      border-radius: 8px;
+      padding: 12px;
+      max-height: 280px;
+      overflow: auto;
+    }
+
+    .ok {
+      color: #0a7a28;
+      font-weight: 600;
+    }
+
+    .err {
+      color: #b42318;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <h1>Проверка авторизации (OAuth2 + PKCE)</h1>
+  <div class="hint">Минимальный стенд для user_service: получить токен и сходить в защищенный endpoint.</div>
+
+  <div class="panel">
+    <label for="baseUrl">Base URL user_service</label>
+    <input id="baseUrl" value="http://localhost:1115" />
+
+    <label for="clientId" style="margin-top:10px;">Client ID</label>
+    <input id="clientId" value="frontend-app" />
+
+    <label for="clientSecret" style="margin-top:10px;">Client Secret</label>
+    <input id="clientSecret" value="frontend-app-secret" />
+
+    <label for="redirectUri" style="margin-top:10px;">Redirect URI</label>
+    <input id="redirectUri" value="http://localhost:3000/login/oauth2/code/frontend-app" />
+
+    <label for="scope" style="margin-top:10px;">Scope</label>
+    <input id="scope" value="api" />
+
+    <div class="row">
+      <button id="saveCfg">Сохранить конфиг</button>
+      <button id="authBtn" class="primary">Войти (OAuth2)</button>
+      <button id="clearBtn">Выйти (очистить токены)</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="row" style="margin-top:0;">
+      <button id="refreshBtn">Обновить access_token</button>
+      <button id="meBtn" class="primary">GET /api/auth/me</button>
+    </div>
+
+    <div class="hint" style="margin-top:10px; margin-bottom:0;">
+      Для `frontend-app` (confidential) должен выдаваться refresh_token; кнопка обновляет access_token без повторного логина.
+    </div>
+
+    <p id="status"></p>
+
+    <h3>Токены</h3>
+    <pre id="tokensOut">(пусто)</pre>
+
+    <h3>JWT payload</h3>
+    <pre id="claimsOut">(пусто)</pre>
+
+    <h3>Ответ API</h3>
+    <pre id="apiOut">(пусто)</pre>
+  </div>
+
+  <script src="/script.js"></script>
+</body>
+</html>

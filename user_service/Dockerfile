@@ -1,12 +1,15 @@
 FROM gradle:jdk21-alpine AS builder
 
-WORKDIR /app
+WORKDIR /workspace
 
-COPY build.gradle settings.gradle ./
+COPY user_service/build.gradle user_service/settings.gradle ./user_service/
+COPY shared_security/src ./shared_security/src
+
+WORKDIR /workspace/user_service
 
 RUN gradle dependencies --no-daemon
 
-COPY src ./src
+COPY user_service/src ./src
 
 RUN gradle build --no-daemon -x test
 
@@ -16,7 +19,7 @@ FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
-COPY --from=builder /app/build/libs/*.jar app.jar
+COPY --from=builder /workspace/user_service/build/libs/*.jar app.jar
 
 EXPOSE 1115
 

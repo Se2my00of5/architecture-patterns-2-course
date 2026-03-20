@@ -1,8 +1,8 @@
 services:
   core_service:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: core_service/Dockerfile
     container_name: core-service-backend
     restart: unless-stopped
     env_file:

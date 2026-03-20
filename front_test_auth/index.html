@@ -134,6 +134,24 @@
     <pre id="apiOut">(пусто)</pre>
   </div>
 
+  <div class="panel">
+    <h3>Проверка machine-token: POST /api/accounts (core_service)</h3>
+
+    <label for="coreBaseUrl">Base URL core_service</label>
+    <input id="coreBaseUrl" value="http://localhost:1111" />
+
+    <label for="targetUserId" style="margin-top:10px;">User ID для открытия счёта</label>
+    <input id="targetUserId" placeholder="например: b308c127-1b09-46d9-ad30-f34349256cd4" />
+
+    <div class="row">
+      <button id="createAccountBtn" class="primary">POST /api/accounts</button>
+    </div>
+
+    <div class="hint" style="margin-top:10px; margin-bottom:0;">
+      Ожидаемо: 201 для существующего userId, 404 для несуществующего userId (проверка через user_service).
+    </div>
+  </div>
+
   <script src="/script.js"></script>
 </body>
 </html>

@@ -8,6 +8,7 @@ import ru.hits.core_service.dto.response.AccountResponse;
 import ru.hits.core_service.dto.response.OperationResponse;
 import ru.hits.core_service.entity.AccountEntity;
 import ru.hits.core_service.exception.NotFoundException;
+import ru.hits.core_service.integration.UserServiceClient;
 import ru.hits.core_service.mapper.AccountMapper;
 import ru.hits.core_service.mapper.OperationMapper;
 import ru.hits.core_service.repository.AccountRepository;
@@ -26,11 +27,16 @@ public class AccountQueryHandler {
     private final OperationRepository operationRepository;
     private final AccountMapper accountMapper;
     private final OperationMapper operationMapper;
+    private final UserServiceClient userServiceClient;
 
     /**
      * Получить все счета конкретного клиента.
      */
     public List<AccountResponse> getAccountsByUser(UUID userId) {
+        if (!userServiceClient.userExists(userId)) {
+            throw new NotFoundException("Пользователь не найден: " + userId);
+        }
+
         return accountMapper.toResponseList(accountRepository.findByUserId(userId));
     }
 

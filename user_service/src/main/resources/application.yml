@@ -25,5 +25,8 @@ oauth2:
         client-id: ${OAUTH_FRONTEND_CLIENT_ID:frontend-app}
         client-secret: ${OAUTH_FRONTEND_CLIENT_SECRET:frontend-app-secret}
         redirect-uri: ${OAUTH_FRONTEND_REDIRECT_URI:http://localhost:3000/login/oauth2/code/frontend-app}
+      service:
+        client-id: ${SERVICE_CLIENT_ID:service-client}
+        client-secret: ${SERVICE_CLIENT_SECRET:service-client-secret}
 
 

@@ -17,6 +17,7 @@ import ru.hits.core_service.entity.enums.AccountStatus;
 import ru.hits.core_service.entity.enums.OperationType;
 import ru.hits.core_service.exception.BusinessException;
 import ru.hits.core_service.exception.NotFoundException;
+import ru.hits.core_service.integration.UserServiceClient;
 import ru.hits.core_service.mapper.AccountMapper;
 import ru.hits.core_service.repository.AccountRepository;
 import ru.hits.core_service.repository.OperationRepository;
@@ -34,11 +35,16 @@ public class AccountCommandHandler {
     private final AccountRepository accountRepository;
     private final OperationRepository operationRepository;
     private final AccountMapper accountMapper;
+    private final UserServiceClient userServiceClient;
 
     /**
      * Открыть новый счёт для клиента.
      */
     public AccountResponse openAccount(OpenAccountRequest command) {
+        if (!userServiceClient.userExists(command.getUserId())) {
+            throw new NotFoundException("Пользователь не найден: " + command.getUserId());
+        }
+
         AccountEntity account = AccountEntity.builder()
                 .userId(command.getUserId())
                 .balance(BigDecimal.ZERO)

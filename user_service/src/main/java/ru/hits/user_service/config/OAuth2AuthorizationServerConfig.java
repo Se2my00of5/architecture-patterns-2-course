@@ -111,7 +111,9 @@ public class OAuth2AuthorizationServerConfig {
     public RegisteredClientRepository registeredClientRepository(
             @Value("${oauth2.auth-server.clients.frontend.client-id}") String frontendClientId,
             @Value("${oauth2.auth-server.clients.frontend.client-secret}") String frontendClientSecret,
-            @Value("${oauth2.auth-server.clients.frontend.redirect-uri}") String frontendRedirectUri
+            @Value("${oauth2.auth-server.clients.frontend.redirect-uri}") String frontendRedirectUri,
+            @Value("${oauth2.auth-server.clients.service.client-id}") String serviceClientId,
+            @Value("${oauth2.auth-server.clients.service.client-secret}") String serviceClientSecret
     ) {
         RegisteredClient frontendClient = RegisteredClient.withId(UUID.randomUUID().toString())
                 .clientId(frontendClientId)
@@ -131,7 +133,18 @@ public class OAuth2AuthorizationServerConfig {
                         .build())
                 .build();
 
-        return new InMemoryRegisteredClientRepository(frontendClient);
+        RegisteredClient serviceClient = RegisteredClient.withId(UUID.randomUUID().toString())
+                .clientId(serviceClientId)
+                .clientSecret(passwordEncoder.encode(serviceClientSecret))
+                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
+                .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
+                .scope("api")
+                .tokenSettings(TokenSettings.builder()
+                        .accessTokenTimeToLive(Duration.ofMinutes(10))
+                        .build())
+                .build();
+
+        return new InMemoryRegisteredClientRepository(frontendClient, serviceClient);
     }
 
     @Bean
@@ -143,6 +156,13 @@ public class OAuth2AuthorizationServerConfig {
     public OAuth2TokenCustomizer<JwtEncodingContext> tokenCustomizer() {
         return context -> {
             if (!OAuth2TokenType.ACCESS_TOKEN.equals(context.getTokenType())) {
+                return;
+            }
+
+            if (AuthorizationGrantType.CLIENT_CREDENTIALS.equals(context.getAuthorizationGrantType())) {
+                context.getClaims().claim("service", true);
+                context.getClaims().claim("client_id", context.getRegisteredClient().getClientId());
+                context.getClaims().claim("roles", "SERVICE");
                 return;
             }
 

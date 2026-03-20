@@ -2,6 +2,7 @@ const CONFIG_KEY = 'auth_test_config';
 const TOKENS_KEY = 'auth_test_tokens';
 const DEFAULT_CONFIG = {
   baseUrl: 'http://localhost:1115',
+  coreBaseUrl: 'http://localhost:1111',
   clientId: 'frontend-app',
   clientSecret: 'frontend-app-secret',
   redirectUri: 'http://localhost:3000/login/oauth2/code/frontend-app',
@@ -10,11 +11,14 @@ const DEFAULT_CONFIG = {
 
 const cfgEls = {
   baseUrl: document.getElementById('baseUrl'),
+  coreBaseUrl: document.getElementById('coreBaseUrl'),
   clientId: document.getElementById('clientId'),
   clientSecret: document.getElementById('clientSecret'),
   redirectUri: document.getElementById('redirectUri'),
   scope: document.getElementById('scope')
 };
+
+const targetUserIdEl = document.getElementById('targetUserId');
 
 const statusEl = document.getElementById('status');
 const tokensOut = document.getElementById('tokensOut');
@@ -29,6 +33,7 @@ function setStatus(text, isError = false) {
 function saveConfig() {
   const config = {
     baseUrl: cfgEls.baseUrl.value.trim(),
+    coreBaseUrl: cfgEls.coreBaseUrl.value.trim(),
     clientId: cfgEls.clientId.value.trim(),
     clientSecret: cfgEls.clientSecret.value.trim(),
     redirectUri: cfgEls.redirectUri.value.trim(),
@@ -42,6 +47,7 @@ function loadConfig() {
   const saved = localStorage.getItem(CONFIG_KEY);
   if (!saved) {
     cfgEls.baseUrl.value = DEFAULT_CONFIG.baseUrl;
+    cfgEls.coreBaseUrl.value = DEFAULT_CONFIG.coreBaseUrl;
     cfgEls.clientId.value = DEFAULT_CONFIG.clientId;
     cfgEls.clientSecret.value = DEFAULT_CONFIG.clientSecret;
     cfgEls.redirectUri.value = DEFAULT_CONFIG.redirectUri;
@@ -66,6 +72,7 @@ function loadConfig() {
   }
 
   cfgEls.baseUrl.value = config.baseUrl || '';
+  cfgEls.coreBaseUrl.value = config.coreBaseUrl || '';
   cfgEls.clientId.value = config.clientId || '';
   cfgEls.clientSecret.value = config.clientSecret || '';
   cfgEls.redirectUri.value = config.redirectUri || '';
@@ -317,6 +324,61 @@ async function callMe() {
   setStatus('Запрос /api/auth/me успешен');
 }
 
+async function createAccountForUser() {
+  const tokens = normalizeTokenPayload(getTokens());
+  if (!tokens?.access_token) {
+    setStatus('Сначала получите access_token', true);
+    return;
+  }
+
+  const userId = targetUserIdEl.value.trim();
+  if (!userId) {
+    setStatus('Укажите User ID для создания счёта', true);
+    return;
+  }
+
+  const cfg = saveConfig();
+  const response = await fetch(`${cfg.coreBaseUrl}/api/accounts`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${tokens.access_token}`
+    },
+    body: JSON.stringify({ userId })
+  });
+
+  const text = await response.text();
+  let payload;
+  try {
+    payload = JSON.parse(text);
+  } catch {
+    payload = text;
+  }
+
+  apiOut.textContent = JSON.stringify(
+    {
+      endpoint: 'POST /api/accounts',
+      status: response.status,
+      ok: response.ok,
+      body: payload
+    },
+    null,
+    2
+  );
+
+  if (response.status === 201) {
+    setStatus('Счёт создан: проверка межсервисной авторизации прошла');
+    return;
+  }
+
+  if (response.status === 404) {
+    setStatus('Пользователь не найден (ожидаемо для несуществующего userId)', true);
+    return;
+  }
+
+  setStatus('Ошибка при создании счёта', true);
+}
+
 function initFromUrl() {
   const url = new URL(window.location.href);
   const code = url.searchParams.get('code');
@@ -355,6 +417,10 @@ document.getElementById('refreshBtn').addEventListener('click', () => {
 
 document.getElementById('meBtn').addEventListener('click', () => {
   callMe().catch((e) => setStatus(`Ошибка /api/auth/me: ${e.message}`, true));
+});
+
+document.getElementById('createAccountBtn').addEventListener('click', () => {
+  createAccountForUser().catch((e) => setStatus(`Ошибка POST /api/accounts: ${e.message}`, true));
 });
 
 loadConfig();

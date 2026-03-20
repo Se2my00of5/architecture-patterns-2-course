@@ -16,3 +16,10 @@ server:
 security:
   jwt:
     public-key: ${JWT_PUBLIC_KEY:}
+
+integration:
+  user-service:
+    base-url: ${USER_SERVICE_BASE_URL:http://localhost:1115}
+    oauth:
+      client-id: ${SERVICE_CLIENT_ID:service-client}
+      client-secret: ${SERVICE_CLIENT_SECRET:service-client-secret}

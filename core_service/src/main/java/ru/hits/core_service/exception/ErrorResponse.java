@@ -1,4 +1,4 @@
-package ru.hits.core_service.dto.response;
+package ru.hits.core_service.exception;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;

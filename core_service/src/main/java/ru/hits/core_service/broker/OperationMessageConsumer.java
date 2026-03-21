@@ -19,6 +19,7 @@ import ru.hits.core_service.repository.AccountRepository;
 import ru.hits.core_service.repository.OperationRepository;
 import ru.hits.core_service.service.AccountBalanceService;
 import ru.hits.core_service.service.AccountLookupService;
+import ru.hits.core_service.ws.OperationWsPublisher;
 
 import java.util.Comparator;
 import java.util.List;
@@ -35,6 +36,7 @@ public class OperationMessageConsumer {
     private final TransferDescriptionFormatter transferDescriptionFormatter;
     private final AccountLookupService accountLookupService;
     private final AccountBalanceService accountBalanceService;
+    private final OperationWsPublisher operationWsPublisher;
 
     @KafkaListener(topics = "${app.kafka.topics.account-operations}")
     @Transactional
@@ -67,12 +69,13 @@ public class OperationMessageConsumer {
         account.setBalance(accountBalanceService.addAmounts(account.getBalance(), message.getAmount()));
         accountRepository.save(account);
 
-        operationRepository.save(OperationEntity.builder()
+        OperationEntity operation = operationRepository.save(OperationEntity.builder()
                 .account(account)
                 .type(OperationType.DEPOSIT)
                 .amount(message.getAmount())
                 .description(message.getDescription())
                 .build());
+        operationWsPublisher.publishCreated(operation);
     }
 
     private void handleWithdraw(OperationMessage message) {
@@ -80,12 +83,13 @@ public class OperationMessageConsumer {
         account.setBalance(accountBalanceService.decreaseBalance(account, message.getAmount()));
         accountRepository.save(account);
 
-        operationRepository.save(OperationEntity.builder()
+        OperationEntity operation = operationRepository.save(OperationEntity.builder()
                 .account(account)
                 .type(OperationType.WITHDRAWAL)
                 .amount(message.getAmount())
                 .description(message.getDescription())
                 .build());
+        operationWsPublisher.publishCreated(operation);
     }
 
     private void handleTransfer(OperationMessage message) {
@@ -99,19 +103,22 @@ public class OperationMessageConsumer {
         String transferInDescription = transferDescriptionFormatter
                 .buildTransferInDescription(message, sourceAccount.getId());
 
-        operationRepository.save(OperationEntity.builder()
+        OperationEntity outOperation = operationRepository.save(OperationEntity.builder()
                 .account(sourceAccount)
                 .type(OperationType.TRANSFER_OUT)
                 .amount(message.getAmount())
                 .description(transferOutDescription)
                 .build());
 
-        operationRepository.save(OperationEntity.builder()
+        OperationEntity inOperation = operationRepository.save(OperationEntity.builder()
                 .account(targetAccount)
                 .type(OperationType.TRANSFER_IN)
                 .amount(targetAmount)
                 .description(transferInDescription)
                 .build());
+
+        operationWsPublisher.publishCreated(outOperation);
+        operationWsPublisher.publishCreated(inOperation);
     }
 
     private void handleLoanDisbursement(OperationMessage message) {
@@ -119,26 +126,28 @@ public class OperationMessageConsumer {
         AccountEntity targetAccount = movement.targetAccount();
         long targetAmount = movement.targetAmount();
 
-        operationRepository.save(LoanOperationEntity.builder()
+        LoanOperationEntity operation = operationRepository.save(LoanOperationEntity.builder()
             .account(targetAccount)
             .type(OperationType.LOAN_DISBURSEMENT)
             .amount(targetAmount)
             .description(message.getDescription())
             .creditId(message.getCreditId())
             .build());
+        operationWsPublisher.publishCreated(operation);
     }
 
     private void handleLoanRepayment(OperationMessage message) {
         MovementResult movement = executeTwoAccountMovementOrThrow(message);
         AccountEntity sourceAccount = movement.sourceAccount();
 
-        operationRepository.save(LoanOperationEntity.builder()
+        LoanOperationEntity operation = operationRepository.save(LoanOperationEntity.builder()
             .account(sourceAccount)
             .type(OperationType.LOAN_REPAYMENT)
             .amount(message.getAmount())
             .description(message.getDescription())
             .creditId(message.getCreditId())
             .build());
+        operationWsPublisher.publishCreated(operation);
     }
 
     private MovementResult executeTwoAccountMovementOrThrow(OperationMessage message) {

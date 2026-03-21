@@ -1,9 +1,9 @@
 package ru.hits.core_service.handler.query;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import lombok.extern.slf4j.Slf4j;
 import ru.hits.core_service.dto.response.AccountResponse;
 import ru.hits.core_service.dto.response.OperationResponse;
 import ru.hits.core_service.entity.AccountEntity;

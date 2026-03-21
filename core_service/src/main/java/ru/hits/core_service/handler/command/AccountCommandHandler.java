@@ -4,6 +4,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.hits.core_service.broker.OperationMessageProducer;
+import ru.hits.core_service.broker.message.AccountCommandType;
+import ru.hits.core_service.broker.message.OperationMessage;
 import ru.hits.core_service.dto.request.DepositRequest;
 import ru.hits.core_service.dto.request.LoanDisbursementRequest;
 import ru.hits.core_service.dto.request.LoanRepaymentRequest;
@@ -19,9 +22,6 @@ import ru.hits.core_service.exception.NotFoundException;
 import ru.hits.core_service.integration.UserServiceClient;
 import ru.hits.core_service.mapper.AccountMapper;
 import ru.hits.core_service.mapper.MoneyMapper;
-import ru.hits.core_service.broker.message.AccountCommandType;
-import ru.hits.core_service.broker.message.OperationMessage;
-import ru.hits.core_service.broker.OperationMessageProducer;
 import ru.hits.core_service.repository.AccountRepository;
 
 import java.math.BigDecimal;
@@ -50,7 +50,7 @@ public class AccountCommandHandler {
 
         AccountEntity account = AccountEntity.builder()
                 .userId(command.getUserId())
-            .balance(0L)
+                .balance(0L)
                 .status(AccountStatus.ACTIVE)
                 .build();
         return accountMapper.toResponse(accountRepository.save(account));
@@ -135,13 +135,13 @@ public class AccountCommandHandler {
                 : "Перевод средств";
 
         operationMessageProducer.send(OperationMessage.builder()
-            .operationId(operationId)
-            .commandType(AccountCommandType.TRANSFER)
-            .sourceAccountId(accountId)
-            .targetAccountId(command.getTargetAccountId())
-            .amount(amountInKopecks)
-            .description(description)
-            .build());
+                .operationId(operationId)
+                .commandType(AccountCommandType.TRANSFER)
+                .sourceAccountId(accountId)
+                .targetAccountId(command.getTargetAccountId())
+                .amount(amountInKopecks)
+                .description(description)
+                .build());
 
         return new OperationAcceptedResponse(operationId, "QUEUED");
     }
@@ -188,7 +188,7 @@ public class AccountCommandHandler {
 
         return new OperationAcceptedResponse(operationId, "QUEUED");
     }
-    
+
 
     private AccountEntity findActiveAccountForUpdateOrThrow(UUID accountId) {
         AccountEntity account = accountRepository.findByIdForUpdate(accountId)
@@ -204,7 +204,7 @@ public class AccountCommandHandler {
             throw new BusinessException("Недостаточно средств на счёте: " + account.getId());
         }
     }
-    
+
     private long toKopecks(BigDecimal amount) {
         try {
             Long amountInKopecks = moneyMapper.rublesToKopecks(amount);

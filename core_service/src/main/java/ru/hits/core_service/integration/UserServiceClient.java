@@ -12,7 +12,6 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
-
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -71,7 +70,8 @@ public class UserServiceClient {
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .body(body)
                 .retrieve()
-                .body(new ParameterizedTypeReference<>() {});
+                .body(new ParameterizedTypeReference<>() {
+                });
 
         if (tokenResponse == null || tokenResponse.get("access_token") == null) {
             throw new IllegalStateException("Не удалось получить service access token");

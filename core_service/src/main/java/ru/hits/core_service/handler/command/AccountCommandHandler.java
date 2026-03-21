@@ -11,22 +11,20 @@ import ru.hits.core_service.dto.request.OpenAccountRequest;
 import ru.hits.core_service.dto.request.TransferRequest;
 import ru.hits.core_service.dto.request.WithdrawRequest;
 import ru.hits.core_service.dto.response.AccountResponse;
+import ru.hits.core_service.dto.response.OperationAcceptedResponse;
 import ru.hits.core_service.entity.AccountEntity;
-import ru.hits.core_service.entity.LoanOperationEntity;
-import ru.hits.core_service.entity.OperationEntity;
 import ru.hits.core_service.entity.enums.AccountStatus;
-import ru.hits.core_service.entity.enums.OperationType;
 import ru.hits.core_service.exception.BusinessException;
 import ru.hits.core_service.exception.NotFoundException;
 import ru.hits.core_service.integration.UserServiceClient;
 import ru.hits.core_service.mapper.AccountMapper;
 import ru.hits.core_service.mapper.MoneyMapper;
+import ru.hits.core_service.broker.message.AccountCommandType;
+import ru.hits.core_service.broker.message.OperationMessage;
+import ru.hits.core_service.broker.OperationMessageProducer;
 import ru.hits.core_service.repository.AccountRepository;
-import ru.hits.core_service.repository.OperationRepository;
 
 import java.math.BigDecimal;
-import java.util.Comparator;
-import java.util.List;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -37,9 +35,9 @@ import java.util.UUID;
 public class AccountCommandHandler {
 
     private final AccountRepository accountRepository;
-    private final OperationRepository operationRepository;
     private final AccountMapper accountMapper;
     private final MoneyMapper moneyMapper;
+    private final OperationMessageProducer operationMessageProducer;
     private final UserServiceClient userServiceClient;
 
     /**
@@ -77,52 +75,49 @@ public class AccountCommandHandler {
     /**
      * Внести деньги на счёт.
      */
-    public AccountResponse deposit(UUID accountId, DepositRequest command) {
+    public OperationAcceptedResponse deposit(UUID accountId, DepositRequest command) {
         log.debug("deposit: accountId={}, amount={}, desc={}", accountId, command.getAmount(), command.getDescription());
-        AccountEntity account = findActiveAccountForUpdateOrThrow(accountId);
+        findActiveAccountForUpdateOrThrow(accountId);
         long amountInKopecks = toKopecks(command.getAmount());
+        UUID operationId = UUID.randomUUID();
 
-        account.setBalance(addAmounts(account.getBalance(), amountInKopecks));
-        accountRepository.save(account);
-
-        OperationEntity operation = OperationEntity.builder()
-                .account(account)
-                .type(OperationType.DEPOSIT)
-            .amount(amountInKopecks)
+        operationMessageProducer.send(OperationMessage.builder()
+                .operationId(operationId)
+                .commandType(AccountCommandType.DEPOSIT)
+                .sourceAccountId(accountId)
+                .amount(amountInKopecks)
                 .description(command.getDescription() != null ? command.getDescription() : "Внесение средств на счёт")
-                .build();
-        operationRepository.save(operation);
+                .build());
 
-        return accountMapper.toResponse(account);
+        return new OperationAcceptedResponse(operationId, "QUEUED");
     }
 
     /**
      * Снять деньги со счёта.
      */
-    public AccountResponse withdraw(UUID accountId, WithdrawRequest command) {
+    public OperationAcceptedResponse withdraw(UUID accountId, WithdrawRequest command) {
         log.debug("withdraw: accountId={}, amount={}, desc={}", accountId, command.getAmount(), command.getDescription());
-        AccountEntity account = findActiveAccountForUpdateOrThrow(accountId);
         long amountInKopecks = toKopecks(command.getAmount());
+        AccountEntity account = findActiveAccountForUpdateOrThrow(accountId);
+        validateSufficientFunds(account, amountInKopecks);
+        UUID operationId = UUID.randomUUID();
 
-        account.setBalance(decreaseBalance(account, amountInKopecks));
-        accountRepository.save(account);
-
-        OperationEntity operation = OperationEntity.builder()
-                .account(account)
-                .type(OperationType.WITHDRAWAL)
-            .amount(amountInKopecks)
+        operationMessageProducer.send(OperationMessage.builder()
+                .operationId(operationId)
+                .commandType(AccountCommandType.WITHDRAW)
+                .sourceAccountId(accountId)
+                .amount(amountInKopecks)
                 .description(command.getDescription() != null ? command.getDescription() : "Снятие средств со счёта")
-                .build();
-        operationRepository.save(operation);
+                .build());
 
-        return accountMapper.toResponse(account);
+        return new OperationAcceptedResponse(operationId, "QUEUED");
     }
 
     /**
      * Перевести деньги со счёта на счёт.
      * Поддерживаются переводы как между своими счетами, так и на чужие счета.
      */
-    public AccountResponse transfer(UUID accountId, TransferRequest command) {
+    public OperationAcceptedResponse transfer(UUID accountId, TransferRequest command) {
         log.debug("transfer: fromAccountId={}, toAccountId={}, amount={}, desc={}",
                 accountId, command.getTargetAccountId(), command.getAmount(), command.getDescription());
         long amountInKopecks = toKopecks(command.getAmount());
@@ -130,116 +125,86 @@ public class AccountCommandHandler {
         if (accountId.equals(command.getTargetAccountId())) {
             throw new BusinessException("Нельзя выполнить перевод на тот же счёт: " + accountId);
         }
+        AccountEntity sourceAccount = findActiveAccountForUpdateOrThrow(accountId);
+        validateSufficientFunds(sourceAccount, amountInKopecks);
 
-
-        // Cортировка ID для предотвращения дедлоков при одновременных переводах между одними и теми же счетами в разных направлениях
-        // Если поток A лочит сначала A, потом B, а поток B — сначала B, потом A, то может возникнуть дедлок.
-        List<UUID> accountIdsToLock = List.of(accountId, command.getTargetAccountId()).stream()
-                .sorted(Comparator.naturalOrder())
-                .toList();
-
-        AccountEntity firstLocked = findActiveAccountForUpdateOrThrow(accountIdsToLock.get(0));
-        AccountEntity secondLocked = findActiveAccountForUpdateOrThrow(accountIdsToLock.get(1));
-
-        AccountEntity sourceAccount = firstLocked.getId().equals(accountId) ? firstLocked : secondLocked;
-        AccountEntity targetAccount = firstLocked.getId().equals(command.getTargetAccountId()) ? firstLocked : secondLocked;
-
-        sourceAccount.setBalance(decreaseBalance(sourceAccount, amountInKopecks));
-        targetAccount.setBalance(addAmounts(targetAccount.getBalance(), amountInKopecks));
-        accountRepository.save(sourceAccount);
-        accountRepository.save(targetAccount);
+        UUID operationId = UUID.randomUUID();
 
         String description = command.getDescription() != null && !command.getDescription().isBlank()
                 ? command.getDescription()
                 : "Перевод средств";
 
-        OperationEntity transferOutOperation = OperationEntity.builder()
-                .account(sourceAccount)
-                .type(OperationType.TRANSFER_OUT)
+        operationMessageProducer.send(OperationMessage.builder()
+            .operationId(operationId)
+            .commandType(AccountCommandType.TRANSFER)
+            .sourceAccountId(accountId)
+            .targetAccountId(command.getTargetAccountId())
             .amount(amountInKopecks)
-                .description(description + ". Получатель: " + targetAccount.getId())
-                .build();
-        operationRepository.save(transferOutOperation);
+            .description(description)
+            .build());
 
-        OperationEntity transferInOperation = OperationEntity.builder()
-                .account(targetAccount)
-                .type(OperationType.TRANSFER_IN)
-            .amount(amountInKopecks)
-                .description(description + ". Отправитель: " + sourceAccount.getId())
-                .build();
-        operationRepository.save(transferInOperation);
-
-        return accountMapper.toResponse(sourceAccount);
+        return new OperationAcceptedResponse(operationId, "QUEUED");
     }
 
     /**
      * Выдать кредит на счёт (пополнение баланса счета).
      */
-    public AccountResponse loanDisbursement(UUID accountId, LoanDisbursementRequest command) {
+    public OperationAcceptedResponse loanDisbursement(UUID accountId, LoanDisbursementRequest command) {
         log.debug("loanDisbursement: accountId={}, creditId={}, amount={}", accountId, command.getCreditId(), command.getAmount());
-        AccountEntity account = findActiveAccountForUpdateOrThrow(accountId);
+        findActiveAccountForUpdateOrThrow(accountId);
         long amountInKopecks = toKopecks(command.getAmount());
+        UUID operationId = UUID.randomUUID();
 
-        account.setBalance(addAmounts(account.getBalance(), amountInKopecks));
-        accountRepository.save(account);
-
-        LoanOperationEntity operation = LoanOperationEntity.builder()
-                .account(account)
-                .type(OperationType.LOAN_DISBURSEMENT)
-            .amount(amountInKopecks)
+        operationMessageProducer.send(OperationMessage.builder()
+                .operationId(operationId)
+                .commandType(AccountCommandType.LOAN_DISBURSEMENT)
+                .sourceAccountId(accountId)
+                .amount(amountInKopecks)
                 .description(command.getDescription() != null ? command.getDescription() : "Выдача кредита")
                 .creditId(command.getCreditId())
-                .build();
-        operationRepository.save(operation);
+                .build());
 
-        return accountMapper.toResponse(account);
+        return new OperationAcceptedResponse(operationId, "QUEUED");
     }
 
     /**
      * Погасить кредит со счёта (снятие со счета).
      */
-    public AccountResponse loanRepayment(UUID accountId, LoanRepaymentRequest command) {
+    public OperationAcceptedResponse loanRepayment(UUID accountId, LoanRepaymentRequest command) {
         log.debug("loanRepayment: accountId={}, creditId={}, amount={}", accountId, command.getCreditId(), command.getAmount());
-        AccountEntity account = findActiveAccountForUpdateOrThrow(accountId);
         long amountInKopecks = toKopecks(command.getAmount());
+        AccountEntity account = findActiveAccountForUpdateOrThrow(accountId);
+        validateSufficientFunds(account, amountInKopecks);
+        UUID operationId = UUID.randomUUID();
 
-        account.setBalance(decreaseBalance(account, amountInKopecks));
-        accountRepository.save(account);
-
-        LoanOperationEntity operation = LoanOperationEntity.builder()
-                .account(account)
-                .type(OperationType.LOAN_REPAYMENT)
-            .amount(amountInKopecks)
+        operationMessageProducer.send(OperationMessage.builder()
+                .operationId(operationId)
+                .commandType(AccountCommandType.LOAN_REPAYMENT)
+                .sourceAccountId(accountId)
+                .amount(amountInKopecks)
                 .description(command.getDescription() != null ? command.getDescription() : "Погашение кредита")
                 .creditId(command.getCreditId())
-                .build();
-        operationRepository.save(operation);
+                .build());
 
-        return accountMapper.toResponse(account);
+        return new OperationAcceptedResponse(operationId, "QUEUED");
     }
+    
 
     private AccountEntity findActiveAccountForUpdateOrThrow(UUID accountId) {
         AccountEntity account = accountRepository.findByIdForUpdate(accountId)
-            .orElseThrow(() -> new NotFoundException("Счёт не найден: " + accountId));
-
+                .orElseThrow(() -> new NotFoundException("Счёт не найден: " + accountId));
         if (account.getStatus() == AccountStatus.CLOSED) {
             throw new BusinessException("Счёт закрыт: " + account.getId());
         }
-
         return account;
     }
 
-    private long decreaseBalance(AccountEntity account, long amountInKopecks) {
+    private void validateSufficientFunds(AccountEntity account, long amountInKopecks) {
         if (account.getBalance() < amountInKopecks) {
             throw new BusinessException("Недостаточно средств на счёте: " + account.getId());
         }
-        long result = subtractAmounts(account.getBalance(), amountInKopecks);
-        if (result < 0) {
-            throw new BusinessException("Операция привела бы к отрицательному балансу: " + account.getId());
-        }
-        return result;
     }
-
+    
     private long toKopecks(BigDecimal amount) {
         try {
             Long amountInKopecks = moneyMapper.rublesToKopecks(amount);
@@ -249,22 +214,6 @@ public class AccountCommandHandler {
             return amountInKopecks;
         } catch (ArithmeticException e) {
             throw new BusinessException("Некорректный формат суммы");
-        }
-    }
-
-    private long addAmounts(long left, long right) {
-        try {
-            return Math.addExact(left, right);
-        } catch (ArithmeticException e) {
-            throw new BusinessException("Переполнение при расчёте суммы");
-        }
-    }
-
-    private long subtractAmounts(long left, long right) {
-        try {
-            return Math.subtractExact(left, right);
-        } catch (ArithmeticException e) {
-            throw new BusinessException("Переполнение при расчёте суммы");
         }
     }
 }

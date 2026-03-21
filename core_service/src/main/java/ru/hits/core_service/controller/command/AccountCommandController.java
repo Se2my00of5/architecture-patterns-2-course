@@ -18,6 +18,7 @@ import ru.hits.core_service.dto.request.OpenAccountRequest;
 import ru.hits.core_service.dto.request.TransferRequest;
 import ru.hits.core_service.dto.request.WithdrawRequest;
 import ru.hits.core_service.dto.response.AccountResponse;
+import ru.hits.core_service.dto.response.OperationAcceptedResponse;
 import ru.hits.core_service.handler.command.AccountCommandHandler;
 
 import java.util.UUID;
@@ -47,8 +48,8 @@ public class AccountCommandController {
 
     @PostMapping("/{accountId}/deposit")
     @Operation(summary = "Внести деньги на счёт")
-    @ResponseStatus(HttpStatus.OK)
-    public AccountResponse deposit(
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public OperationAcceptedResponse deposit(
             @PathVariable UUID accountId, @Valid @RequestBody DepositRequest request
     ) {
         return commandHandler.deposit(accountId, request);
@@ -56,8 +57,8 @@ public class AccountCommandController {
 
     @PostMapping("/{accountId}/withdraw")
     @Operation(summary = "Снять деньги со счёта")
-    @ResponseStatus(HttpStatus.OK)
-    public AccountResponse withdraw(
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public OperationAcceptedResponse withdraw(
             @PathVariable UUID accountId, @Valid @RequestBody WithdrawRequest request
     ) {
         return commandHandler.withdraw(accountId, request);
@@ -65,8 +66,8 @@ public class AccountCommandController {
 
     @PostMapping("/{accountId}/transfer")
     @Operation(summary = "Перевести деньги на другой счёт")
-    @ResponseStatus(HttpStatus.OK)
-    public AccountResponse transfer(
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public OperationAcceptedResponse transfer(
             @PathVariable UUID accountId, @Valid @RequestBody TransferRequest request
     ) {
         return commandHandler.transfer(accountId, request);
@@ -74,8 +75,8 @@ public class AccountCommandController {
 
     @PostMapping("/{accountId}/loan-disbursement")
     @Operation(summary = "Выдать кредит на счёт (внутренний, для взаимодействия)")
-    @ResponseStatus(HttpStatus.OK)
-    public AccountResponse loanDisbursement(
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public OperationAcceptedResponse loanDisbursement(
             @PathVariable UUID accountId, @Valid @RequestBody LoanDisbursementRequest request
     ) {
         return commandHandler.loanDisbursement(accountId, request);
@@ -83,8 +84,8 @@ public class AccountCommandController {
 
     @PostMapping("/{accountId}/loan-repayment")
     @Operation(summary = "Погасить кредит со счёта (внутренний, для взаимодействия)")
-    @ResponseStatus(HttpStatus.OK)
-    public AccountResponse loanRepayment(
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public OperationAcceptedResponse loanRepayment(
             @PathVariable UUID accountId, @Valid @RequestBody LoanRepaymentRequest request
     ) {
         return commandHandler.loanRepayment(accountId, request);

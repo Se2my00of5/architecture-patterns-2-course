@@ -31,6 +31,9 @@ integration:
     cache-ttl-seconds: ${CBR_CACHE_TTL_SECONDS:3600}
 
 app:
+  bank:
+    master-account-id: ${BANK_MASTER_ACCOUNT_ID:00000000-0000-0000-0000-000000000001}
+    master-account-initial-balance-minor: ${BANK_MASTER_ACCOUNT_INITIAL_BALANCE_MINOR:10000000}
   kafka:
     topics:
       account-operations: ${KAFKA_ACCOUNT_OPERATIONS_TOPIC:account-operations}

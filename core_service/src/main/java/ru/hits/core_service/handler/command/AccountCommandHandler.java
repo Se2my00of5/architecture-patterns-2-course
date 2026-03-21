@@ -26,8 +26,8 @@ import ru.hits.core_service.mapper.MoneyMapper;
 import ru.hits.core_service.repository.AccountRepository;
 import ru.hits.core_service.service.AccountBalanceService;
 import ru.hits.core_service.service.AccountLookupService;
+import ru.hits.core_service.service.BankMasterAccountService;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -45,6 +45,7 @@ public class AccountCommandHandler {
     private final CurrencyConversionService currencyConversionService;
     private final AccountLookupService accountLookupService;
     private final AccountBalanceService accountBalanceService;
+    private final BankMasterAccountService bankMasterAccountService;
 
     /**
      * Открыть новый счёт для клиента.
@@ -86,7 +87,7 @@ public class AccountCommandHandler {
         log.debug("deposit: accountId={}, amount={}, desc={}", accountId, command.getAmount(),
                 command.getDescription());
         accountLookupService.findActiveByIdForUpdateOrThrow(accountId);
-        long amountInMinorUnits = toMinorUnits(command.getAmount());
+        long amountInMinorUnits = moneyMapper.majorToMinor(command.getAmount());
         UUID operationId = UUID.randomUUID();
 
         operationMessageProducer.send(OperationMessage.builder()
@@ -106,7 +107,7 @@ public class AccountCommandHandler {
     public OperationAcceptedResponse withdraw(UUID accountId, WithdrawRequest command) {
         log.debug("withdraw: accountId={}, amount={}, desc={}", accountId, command.getAmount(),
                 command.getDescription());
-        long amountInMinorUnits = toMinorUnits(command.getAmount());
+        long amountInMinorUnits = moneyMapper.majorToMinor(command.getAmount());
         AccountEntity account = accountLookupService.findActiveByIdForUpdateOrThrow(accountId);
         accountBalanceService.ensureSufficientFunds(account, amountInMinorUnits);
         UUID operationId = UUID.randomUUID();
@@ -129,7 +130,7 @@ public class AccountCommandHandler {
     public OperationAcceptedResponse transfer(UUID accountId, TransferRequest command) {
         log.debug("transfer: fromAccountId={}, toAccountId={}, amount={}, desc={}",
                 accountId, command.getTargetAccountId(), command.getAmount(), command.getDescription());
-        long amountInMinorUnits = toMinorUnits(command.getAmount());
+        long amountInMinorUnits = moneyMapper.majorToMinor(command.getAmount());
 
         if (accountId.equals(command.getTargetAccountId())) {
             throw new BusinessException("Нельзя выполнить перевод на тот же счёт: " + accountId);
@@ -144,26 +145,15 @@ public class AccountCommandHandler {
                 ? command.getDescription()
                 : "Перевод средств";
 
-        CurrencyConversionService.ConversionQuote conversionQuote = currencyConversionService.quote(
-                amountInMinorUnits,
-                accountBalanceService.normalizeCurrency(sourceAccount),
-                accountBalanceService.normalizeCurrency(targetAccount));
-
-        operationMessageProducer.send(OperationMessage.builder()
-                .operationId(operationId)
-                .commandType(AccountCommandType.TRANSFER)
-                .sourceAccountId(accountId)
-                .targetAccountId(command.getTargetAccountId())
-                .amount(amountInMinorUnits)
-                .targetAmount(conversionQuote.targetAmountMinor())
-                .sourceCurrency(accountBalanceService.normalizeCurrency(sourceAccount))
-                .targetCurrency(accountBalanceService.normalizeCurrency(targetAccount))
-                .exchangeRate(conversionQuote.rate())
-                .exchangeRateQuotedAt(conversionQuote.quotedAt())
-                .description(description)
-                .build());
-
-        return new OperationAcceptedResponse(operationId, "QUEUED");
+        return enqueueCrossAccountOperation(
+            operationId,
+            AccountCommandType.TRANSFER,
+            sourceAccount,
+            targetAccount,
+            amountInMinorUnits,
+            description,
+            null
+        );
     }
 
     /**
@@ -172,20 +162,33 @@ public class AccountCommandHandler {
     public OperationAcceptedResponse loanDisbursement(UUID accountId, LoanDisbursementRequest command) {
         log.debug("loanDisbursement: accountId={}, creditId={}, amount={}", accountId, command.getCreditId(),
                 command.getAmount());
-        accountLookupService.findActiveByIdForUpdateOrThrow(accountId);
-        long amountInMinorUnits = toMinorUnits(command.getAmount());
+        AccountEntity clientAccount = accountLookupService.findActiveByIdOrThrow(accountId);
+        AccountEntity masterAccount = bankMasterAccountService.findMasterAccountByIdOrThrow();
+        if (clientAccount.getId().equals(masterAccount.getId())) {
+            throw new BusinessException("Нельзя выдать кредит на мастер-счёт банка");
+        }
+
+        long amountInMinorUnits = moneyMapper.majorToMinor(command.getAmount());
+        if (masterAccount.getBalance() < amountInMinorUnits) {
+            throw new BusinessException(
+                    "У банка недостаточно средств для выдачи кредита. Максимальная сумма кредита: "
+                            + moneyMapper.minorToMajor(masterAccount.getBalance()).toPlainString()
+                            + " "
+                            + accountBalanceService.normalizeCurrency(masterAccount)
+            );
+        }
+
         UUID operationId = UUID.randomUUID();
 
-        operationMessageProducer.send(OperationMessage.builder()
-                .operationId(operationId)
-                .commandType(AccountCommandType.LOAN_DISBURSEMENT)
-                .sourceAccountId(accountId)
-                .amount(amountInMinorUnits)
-                .description(command.getDescription() != null ? command.getDescription() : "Выдача кредита")
-                .creditId(command.getCreditId())
-                .build());
-
-        return new OperationAcceptedResponse(operationId, "QUEUED");
+        return enqueueCrossAccountOperation(
+                operationId,
+                AccountCommandType.LOAN_DISBURSEMENT,
+                masterAccount,
+                clientAccount,
+                amountInMinorUnits,
+                command.getDescription() != null ? command.getDescription() : "Выдача кредита",
+                command.getCreditId()
+        );
     }
 
     /**
@@ -194,32 +197,55 @@ public class AccountCommandHandler {
     public OperationAcceptedResponse loanRepayment(UUID accountId, LoanRepaymentRequest command) {
         log.debug("loanRepayment: accountId={}, creditId={}, amount={}", accountId, command.getCreditId(),
                 command.getAmount());
-        long amountInMinorUnits = toMinorUnits(command.getAmount());
-        AccountEntity account = accountLookupService.findActiveByIdForUpdateOrThrow(accountId);
-        accountBalanceService.ensureSufficientFunds(account, amountInMinorUnits);
+        long amountInMinorUnits = moneyMapper.majorToMinor(command.getAmount());
+        AccountEntity clientAccount = accountLookupService.findActiveByIdOrThrow(accountId);
+        AccountEntity masterAccount = bankMasterAccountService.findMasterAccountByIdOrThrow();
+        accountBalanceService.ensureSufficientFunds(clientAccount, amountInMinorUnits);
+
         UUID operationId = UUID.randomUUID();
+
+        return enqueueCrossAccountOperation(
+                operationId,
+                AccountCommandType.LOAN_REPAYMENT,
+                clientAccount,
+                masterAccount,
+                amountInMinorUnits,
+                command.getDescription() != null ? command.getDescription() : "Погашение кредита",
+                command.getCreditId()
+        );
+    }
+
+    private OperationAcceptedResponse enqueueCrossAccountOperation(
+            UUID operationId,
+            AccountCommandType commandType,
+            AccountEntity sourceAccount,
+            AccountEntity targetAccount,
+            long amountInMinorUnits,
+            String description,
+            UUID creditId
+    ) {
+        CurrencyConversionService.ConversionQuote conversionQuote = currencyConversionService.quote(
+                amountInMinorUnits,
+                accountBalanceService.normalizeCurrency(sourceAccount),
+                accountBalanceService.normalizeCurrency(targetAccount)
+        );
 
         operationMessageProducer.send(OperationMessage.builder()
                 .operationId(operationId)
-                .commandType(AccountCommandType.LOAN_REPAYMENT)
-                .sourceAccountId(accountId)
+                .commandType(commandType)
+                .sourceAccountId(sourceAccount.getId())
+                .targetAccountId(targetAccount.getId())
                 .amount(amountInMinorUnits)
-                .description(command.getDescription() != null ? command.getDescription() : "Погашение кредита")
-                .creditId(command.getCreditId())
+                .targetAmount(conversionQuote.targetAmountMinor())
+                .sourceCurrency(accountBalanceService.normalizeCurrency(sourceAccount))
+                .targetCurrency(accountBalanceService.normalizeCurrency(targetAccount))
+                .exchangeRate(conversionQuote.rate())
+                .exchangeRateQuotedAt(conversionQuote.quotedAt())
+                .description(description)
+                .creditId(creditId)
                 .build());
 
         return new OperationAcceptedResponse(operationId, "QUEUED");
     }
 
-    private long toMinorUnits(BigDecimal amount) {
-        try {
-            Long amountInMinorUnits = moneyMapper.majorToMinor(amount);
-            if (amountInMinorUnits == null) {
-                throw new BusinessException("Сумма обязательна");
-            }
-            return amountInMinorUnits;
-        } catch (ArithmeticException e) {
-            throw new BusinessException("Некорректный формат суммы");
-        }
-    }
 }

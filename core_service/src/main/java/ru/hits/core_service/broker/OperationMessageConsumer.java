@@ -89,26 +89,10 @@ public class OperationMessageConsumer {
     }
 
     private void handleTransfer(OperationMessage message) {
-        if (message.getTargetAccountId() == null) {
-            throw new BusinessException("Для перевода не указан счёт получателя");
-        }
-
-        List<UUID> accountIdsToLock = List.of(message.getSourceAccountId(), message.getTargetAccountId()).stream()
-                .sorted(Comparator.naturalOrder())
-                .toList();
-
-        AccountEntity firstLocked = accountLookupService.findActiveByIdForUpdateOrThrow(accountIdsToLock.get(0));
-        AccountEntity secondLocked = accountLookupService.findActiveByIdForUpdateOrThrow(accountIdsToLock.get(1));
-
-        AccountEntity sourceAccount = firstLocked.getId().equals(message.getSourceAccountId()) ? firstLocked : secondLocked;
-        AccountEntity targetAccount = firstLocked.getId().equals(message.getTargetAccountId()) ? firstLocked : secondLocked;
-
-        long targetAmount = message.getTargetAmount() != null ? message.getTargetAmount() : message.getAmount();
-
-        sourceAccount.setBalance(accountBalanceService.decreaseBalance(sourceAccount, message.getAmount()));
-        targetAccount.setBalance(accountBalanceService.addAmounts(targetAccount.getBalance(), targetAmount));
-        accountRepository.save(sourceAccount);
-        accountRepository.save(targetAccount);
+        MovementResult movement = executeTwoAccountMovementOrThrow(message);
+        AccountEntity sourceAccount = movement.sourceAccount();
+        AccountEntity targetAccount = movement.targetAccount();
+        long targetAmount = movement.targetAmount();
 
         String transferOutDescription = transferDescriptionFormatter
                 .buildTransferOutDescription(message, targetAccount.getId());
@@ -131,31 +115,67 @@ public class OperationMessageConsumer {
     }
 
     private void handleLoanDisbursement(OperationMessage message) {
-        AccountEntity account = accountLookupService.findActiveByIdForUpdateOrThrow(message.getSourceAccountId());
-        account.setBalance(accountBalanceService.addAmounts(account.getBalance(), message.getAmount()));
-        accountRepository.save(account);
+        MovementResult movement = executeTwoAccountMovementOrThrow(message);
+        AccountEntity targetAccount = movement.targetAccount();
+        long targetAmount = movement.targetAmount();
 
         operationRepository.save(LoanOperationEntity.builder()
-                .account(account)
-                .type(OperationType.LOAN_DISBURSEMENT)
-                .amount(message.getAmount())
-                .description(message.getDescription())
-                .creditId(message.getCreditId())
-                .build());
+            .account(targetAccount)
+            .type(OperationType.LOAN_DISBURSEMENT)
+            .amount(targetAmount)
+            .description(message.getDescription())
+            .creditId(message.getCreditId())
+            .build());
     }
 
     private void handleLoanRepayment(OperationMessage message) {
-        AccountEntity account = accountLookupService.findActiveByIdForUpdateOrThrow(message.getSourceAccountId());
-        account.setBalance(accountBalanceService.decreaseBalance(account, message.getAmount()));
-        accountRepository.save(account);
+        MovementResult movement = executeTwoAccountMovementOrThrow(message);
+        AccountEntity sourceAccount = movement.sourceAccount();
 
         operationRepository.save(LoanOperationEntity.builder()
-                .account(account)
-                .type(OperationType.LOAN_REPAYMENT)
-                .amount(message.getAmount())
-                .description(message.getDescription())
-                .creditId(message.getCreditId())
-                .build());
+            .account(sourceAccount)
+            .type(OperationType.LOAN_REPAYMENT)
+            .amount(message.getAmount())
+            .description(message.getDescription())
+            .creditId(message.getCreditId())
+            .build());
+    }
+
+    private MovementResult executeTwoAccountMovementOrThrow(OperationMessage message) {
+        UUID targetAccountId = message.getTargetAccountId();
+        if (targetAccountId == null) {
+            throw new BusinessException("Для операции не указан счёт получателя");
+        }
+
+        List<UUID> accountIdsToLock = List.of(message.getSourceAccountId(), targetAccountId).stream()
+                .sorted(Comparator.naturalOrder())
+                .toList();
+
+        AccountEntity firstLocked = accountLookupService.findActiveByIdForUpdateOrThrow(accountIdsToLock.get(0));
+        AccountEntity secondLocked = accountLookupService.findActiveByIdForUpdateOrThrow(accountIdsToLock.get(1));
+
+        AccountEntity sourceAccount = firstLocked.getId().equals(message.getSourceAccountId())
+                ? firstLocked
+                : secondLocked;
+        AccountEntity targetAccount = firstLocked.getId().equals(targetAccountId)
+                ? firstLocked
+                : secondLocked;
+
+        Long targetAmountValue = message.getTargetAmount();
+        if (targetAmountValue == null) {
+            throw new BusinessException("Для операции не указана сумма зачисления");
+        }
+        long targetAmount = targetAmountValue;
+
+        sourceAccount.setBalance(accountBalanceService.decreaseBalance(sourceAccount, message.getAmount()));
+        targetAccount.setBalance(accountBalanceService.addAmounts(targetAccount.getBalance(), targetAmount));
+        accountRepository.save(sourceAccount);
+        accountRepository.save(targetAccount);
+
+        return new MovementResult(sourceAccount, targetAccount, targetAmount);
+    }
+
+    private record MovementResult(AccountEntity sourceAccount, AccountEntity targetAccount, long targetAmount) {
     }
 
 }

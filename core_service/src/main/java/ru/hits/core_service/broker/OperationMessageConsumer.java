@@ -7,16 +7,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import ru.hits.core_service.broker.formatter.TransferDescriptionFormatter;
 import ru.hits.core_service.broker.message.OperationMessage;
 import ru.hits.core_service.entity.AccountEntity;
 import ru.hits.core_service.entity.LoanOperationEntity;
 import ru.hits.core_service.entity.OperationEntity;
-import ru.hits.core_service.entity.enums.AccountStatus;
 import ru.hits.core_service.entity.enums.OperationType;
 import ru.hits.core_service.exception.BusinessException;
 import ru.hits.core_service.exception.NotFoundException;
 import ru.hits.core_service.repository.AccountRepository;
 import ru.hits.core_service.repository.OperationRepository;
+import ru.hits.core_service.service.AccountBalanceService;
+import ru.hits.core_service.service.AccountLookupService;
 
 import java.util.Comparator;
 import java.util.List;
@@ -30,6 +32,9 @@ public class OperationMessageConsumer {
     private final OperationRepository operationRepository;
     private final AccountRepository accountRepository;
     private final ObjectMapper objectMapper;
+    private final TransferDescriptionFormatter transferDescriptionFormatter;
+    private final AccountLookupService accountLookupService;
+    private final AccountBalanceService accountBalanceService;
 
     @KafkaListener(topics = "${app.kafka.topics.account-operations}")
     @Transactional
@@ -58,8 +63,8 @@ public class OperationMessageConsumer {
     }
 
     private void handleDeposit(OperationMessage message) {
-        AccountEntity account = findActiveAccountForUpdateOrThrow(message.getSourceAccountId());
-        account.setBalance(addAmounts(account.getBalance(), message.getAmount()));
+        AccountEntity account = accountLookupService.findActiveByIdForUpdateOrThrow(message.getSourceAccountId());
+        account.setBalance(accountBalanceService.addAmounts(account.getBalance(), message.getAmount()));
         accountRepository.save(account);
 
         operationRepository.save(OperationEntity.builder()
@@ -71,8 +76,8 @@ public class OperationMessageConsumer {
     }
 
     private void handleWithdraw(OperationMessage message) {
-        AccountEntity account = findActiveAccountForUpdateOrThrow(message.getSourceAccountId());
-        account.setBalance(decreaseBalance(account, message.getAmount()));
+        AccountEntity account = accountLookupService.findActiveByIdForUpdateOrThrow(message.getSourceAccountId());
+        account.setBalance(accountBalanceService.decreaseBalance(account, message.getAmount()));
         accountRepository.save(account);
 
         operationRepository.save(OperationEntity.builder()
@@ -92,35 +97,42 @@ public class OperationMessageConsumer {
                 .sorted(Comparator.naturalOrder())
                 .toList();
 
-        AccountEntity firstLocked = findActiveAccountForUpdateOrThrow(accountIdsToLock.get(0));
-        AccountEntity secondLocked = findActiveAccountForUpdateOrThrow(accountIdsToLock.get(1));
+        AccountEntity firstLocked = accountLookupService.findActiveByIdForUpdateOrThrow(accountIdsToLock.get(0));
+        AccountEntity secondLocked = accountLookupService.findActiveByIdForUpdateOrThrow(accountIdsToLock.get(1));
 
         AccountEntity sourceAccount = firstLocked.getId().equals(message.getSourceAccountId()) ? firstLocked : secondLocked;
         AccountEntity targetAccount = firstLocked.getId().equals(message.getTargetAccountId()) ? firstLocked : secondLocked;
 
-        sourceAccount.setBalance(decreaseBalance(sourceAccount, message.getAmount()));
-        targetAccount.setBalance(addAmounts(targetAccount.getBalance(), message.getAmount()));
+        long targetAmount = message.getTargetAmount() != null ? message.getTargetAmount() : message.getAmount();
+
+        sourceAccount.setBalance(accountBalanceService.decreaseBalance(sourceAccount, message.getAmount()));
+        targetAccount.setBalance(accountBalanceService.addAmounts(targetAccount.getBalance(), targetAmount));
         accountRepository.save(sourceAccount);
         accountRepository.save(targetAccount);
+
+        String transferOutDescription = transferDescriptionFormatter
+                .buildTransferOutDescription(message, targetAccount.getId());
+        String transferInDescription = transferDescriptionFormatter
+                .buildTransferInDescription(message, sourceAccount.getId());
 
         operationRepository.save(OperationEntity.builder()
                 .account(sourceAccount)
                 .type(OperationType.TRANSFER_OUT)
                 .amount(message.getAmount())
-                .description(message.getDescription() + ". Получатель: " + targetAccount.getId())
+                .description(transferOutDescription)
                 .build());
 
         operationRepository.save(OperationEntity.builder()
                 .account(targetAccount)
                 .type(OperationType.TRANSFER_IN)
-                .amount(message.getAmount())
-                .description(message.getDescription() + ". Отправитель: " + sourceAccount.getId())
+                .amount(targetAmount)
+                .description(transferInDescription)
                 .build());
     }
 
     private void handleLoanDisbursement(OperationMessage message) {
-        AccountEntity account = findActiveAccountForUpdateOrThrow(message.getSourceAccountId());
-        account.setBalance(addAmounts(account.getBalance(), message.getAmount()));
+        AccountEntity account = accountLookupService.findActiveByIdForUpdateOrThrow(message.getSourceAccountId());
+        account.setBalance(accountBalanceService.addAmounts(account.getBalance(), message.getAmount()));
         accountRepository.save(account);
 
         operationRepository.save(LoanOperationEntity.builder()
@@ -133,8 +145,8 @@ public class OperationMessageConsumer {
     }
 
     private void handleLoanRepayment(OperationMessage message) {
-        AccountEntity account = findActiveAccountForUpdateOrThrow(message.getSourceAccountId());
-        account.setBalance(decreaseBalance(account, message.getAmount()));
+        AccountEntity account = accountLookupService.findActiveByIdForUpdateOrThrow(message.getSourceAccountId());
+        account.setBalance(accountBalanceService.decreaseBalance(account, message.getAmount()));
         accountRepository.save(account);
 
         operationRepository.save(LoanOperationEntity.builder()
@@ -146,41 +158,4 @@ public class OperationMessageConsumer {
                 .build());
     }
 
-    private AccountEntity findActiveAccountForUpdateOrThrow(UUID accountId) {
-        AccountEntity account = accountRepository.findByIdForUpdate(accountId)
-                .orElseThrow(() -> new NotFoundException("Счёт не найден: " + accountId));
-
-        if (account.getStatus() == AccountStatus.CLOSED) {
-            throw new BusinessException("Счёт закрыт: " + account.getId());
-        }
-
-        return account;
-    }
-
-    private long decreaseBalance(AccountEntity account, long amountInKopecks) {
-        if (account.getBalance() < amountInKopecks) {
-            throw new BusinessException("Недостаточно средств на счёте: " + account.getId());
-        }
-        long result = subtractAmounts(account.getBalance(), amountInKopecks);
-        if (result < 0) {
-            throw new BusinessException("Операция привела бы к отрицательному балансу: " + account.getId());
-        }
-        return result;
-    }
-
-    private long addAmounts(long left, long right) {
-        try {
-            return Math.addExact(left, right);
-        } catch (ArithmeticException e) {
-            throw new BusinessException("Переполнение при расчёте суммы");
-        }
-    }
-
-    private long subtractAmounts(long left, long right) {
-        try {
-            return Math.subtractExact(left, right);
-        } catch (ArithmeticException e) {
-            throw new BusinessException("Переполнение при расчёте суммы");
-        }
-    }
 }

@@ -15,6 +15,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import ru.hits.core_service.entity.enums.AccountStatus;
+import ru.hits.core_service.entity.enums.CurrencyCode;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -40,6 +41,10 @@ public class AccountEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    private CurrencyCode currency;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private AccountStatus status;
 
     @Column(nullable = false)
@@ -55,6 +60,9 @@ public class AccountEntity {
         }
         if (status == null) {
             status = AccountStatus.ACTIVE;
+        }
+        if (currency == null) {
+            currency = CurrencyCode.RUB;
         }
     }
 }

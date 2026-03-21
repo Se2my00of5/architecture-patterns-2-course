@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import ru.hits.core_service.entity.enums.AccountStatus;
+import ru.hits.core_service.entity.enums.CurrencyCode;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -26,6 +27,9 @@ public class AccountResponse {
 
     @Schema(description = "Баланс счёта")
     private BigDecimal balance;
+
+    @Schema(description = "Валюта счёта")
+    private CurrencyCode currency;
 
     @Schema(description = "Статус счёта")
     private AccountStatus status;

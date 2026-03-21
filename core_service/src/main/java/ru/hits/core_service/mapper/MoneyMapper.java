@@ -8,18 +8,18 @@ import java.math.RoundingMode;
 @Component
 public class MoneyMapper {
 
-    public BigDecimal kopecksToRubles(Long amountInKopecks) {
-        if (amountInKopecks == null) {
+    public BigDecimal minorToMajor(Long amountInMinorUnits) {
+        if (amountInMinorUnits == null) {
             return null;
         }
-        return BigDecimal.valueOf(amountInKopecks, 2).setScale(2, RoundingMode.UNNECESSARY);
+        return BigDecimal.valueOf(amountInMinorUnits, 2).setScale(2, RoundingMode.UNNECESSARY);
     }
 
-    public Long rublesToKopecks(BigDecimal amountInRubles) {
-        if (amountInRubles == null) {
+    public Long majorToMinor(BigDecimal amountInMajorUnits) {
+        if (amountInMajorUnits == null) {
             return null;
         }
-        return amountInRubles
+        return amountInMajorUnits
                 .movePointRight(2)
                 .setScale(0, RoundingMode.UNNECESSARY)
                 .longValueExact();

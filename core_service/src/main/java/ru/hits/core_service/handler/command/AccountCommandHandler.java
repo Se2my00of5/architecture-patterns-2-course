@@ -19,10 +19,13 @@ import ru.hits.core_service.entity.AccountEntity;
 import ru.hits.core_service.entity.enums.AccountStatus;
 import ru.hits.core_service.exception.BusinessException;
 import ru.hits.core_service.exception.NotFoundException;
+import ru.hits.core_service.integration.CurrencyConversionService;
 import ru.hits.core_service.integration.UserServiceClient;
 import ru.hits.core_service.mapper.AccountMapper;
 import ru.hits.core_service.mapper.MoneyMapper;
 import ru.hits.core_service.repository.AccountRepository;
+import ru.hits.core_service.service.AccountBalanceService;
+import ru.hits.core_service.service.AccountLookupService;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -39,6 +42,9 @@ public class AccountCommandHandler {
     private final MoneyMapper moneyMapper;
     private final OperationMessageProducer operationMessageProducer;
     private final UserServiceClient userServiceClient;
+    private final CurrencyConversionService currencyConversionService;
+    private final AccountLookupService accountLookupService;
+    private final AccountBalanceService accountBalanceService;
 
     /**
      * Открыть новый счёт для клиента.
@@ -51,6 +57,7 @@ public class AccountCommandHandler {
         AccountEntity account = AccountEntity.builder()
                 .userId(command.getUserId())
                 .balance(0L)
+                .currency(command.getCurrency())
                 .status(AccountStatus.ACTIVE)
                 .build();
         return accountMapper.toResponse(accountRepository.save(account));
@@ -61,7 +68,7 @@ public class AccountCommandHandler {
      * Проверка активных кредитов — ответственность сервиса кредитов.
      */
     public AccountResponse closeAccount(UUID accountId) {
-        AccountEntity account = findActiveAccountForUpdateOrThrow(accountId);
+        AccountEntity account = accountLookupService.findActiveByIdForUpdateOrThrow(accountId);
 
         if (account.getBalance() != 0L) {
             throw new BusinessException("Невозможно закрыть счёт с ненулевым балансом: " + accountId);
@@ -76,16 +83,17 @@ public class AccountCommandHandler {
      * Внести деньги на счёт.
      */
     public OperationAcceptedResponse deposit(UUID accountId, DepositRequest command) {
-        log.debug("deposit: accountId={}, amount={}, desc={}", accountId, command.getAmount(), command.getDescription());
-        findActiveAccountForUpdateOrThrow(accountId);
-        long amountInKopecks = toKopecks(command.getAmount());
+        log.debug("deposit: accountId={}, amount={}, desc={}", accountId, command.getAmount(),
+                command.getDescription());
+        accountLookupService.findActiveByIdForUpdateOrThrow(accountId);
+        long amountInMinorUnits = toMinorUnits(command.getAmount());
         UUID operationId = UUID.randomUUID();
 
         operationMessageProducer.send(OperationMessage.builder()
                 .operationId(operationId)
                 .commandType(AccountCommandType.DEPOSIT)
                 .sourceAccountId(accountId)
-                .amount(amountInKopecks)
+                .amount(amountInMinorUnits)
                 .description(command.getDescription() != null ? command.getDescription() : "Внесение средств на счёт")
                 .build());
 
@@ -96,17 +104,18 @@ public class AccountCommandHandler {
      * Снять деньги со счёта.
      */
     public OperationAcceptedResponse withdraw(UUID accountId, WithdrawRequest command) {
-        log.debug("withdraw: accountId={}, amount={}, desc={}", accountId, command.getAmount(), command.getDescription());
-        long amountInKopecks = toKopecks(command.getAmount());
-        AccountEntity account = findActiveAccountForUpdateOrThrow(accountId);
-        validateSufficientFunds(account, amountInKopecks);
+        log.debug("withdraw: accountId={}, amount={}, desc={}", accountId, command.getAmount(),
+                command.getDescription());
+        long amountInMinorUnits = toMinorUnits(command.getAmount());
+        AccountEntity account = accountLookupService.findActiveByIdForUpdateOrThrow(accountId);
+        accountBalanceService.ensureSufficientFunds(account, amountInMinorUnits);
         UUID operationId = UUID.randomUUID();
 
         operationMessageProducer.send(OperationMessage.builder()
                 .operationId(operationId)
                 .commandType(AccountCommandType.WITHDRAW)
                 .sourceAccountId(accountId)
-                .amount(amountInKopecks)
+                .amount(amountInMinorUnits)
                 .description(command.getDescription() != null ? command.getDescription() : "Снятие средств со счёта")
                 .build());
 
@@ -120,13 +129,14 @@ public class AccountCommandHandler {
     public OperationAcceptedResponse transfer(UUID accountId, TransferRequest command) {
         log.debug("transfer: fromAccountId={}, toAccountId={}, amount={}, desc={}",
                 accountId, command.getTargetAccountId(), command.getAmount(), command.getDescription());
-        long amountInKopecks = toKopecks(command.getAmount());
+        long amountInMinorUnits = toMinorUnits(command.getAmount());
 
         if (accountId.equals(command.getTargetAccountId())) {
             throw new BusinessException("Нельзя выполнить перевод на тот же счёт: " + accountId);
         }
-        AccountEntity sourceAccount = findActiveAccountForUpdateOrThrow(accountId);
-        validateSufficientFunds(sourceAccount, amountInKopecks);
+        AccountEntity sourceAccount = accountLookupService.findActiveByIdOrThrow(accountId);
+        AccountEntity targetAccount = accountLookupService.findActiveByIdOrThrow(command.getTargetAccountId());
+        accountBalanceService.ensureSufficientFunds(sourceAccount, amountInMinorUnits);
 
         UUID operationId = UUID.randomUUID();
 
@@ -134,12 +144,22 @@ public class AccountCommandHandler {
                 ? command.getDescription()
                 : "Перевод средств";
 
+        CurrencyConversionService.ConversionQuote conversionQuote = currencyConversionService.quote(
+                amountInMinorUnits,
+                accountBalanceService.normalizeCurrency(sourceAccount),
+                accountBalanceService.normalizeCurrency(targetAccount));
+
         operationMessageProducer.send(OperationMessage.builder()
                 .operationId(operationId)
                 .commandType(AccountCommandType.TRANSFER)
                 .sourceAccountId(accountId)
                 .targetAccountId(command.getTargetAccountId())
-                .amount(amountInKopecks)
+                .amount(amountInMinorUnits)
+                .targetAmount(conversionQuote.targetAmountMinor())
+                .sourceCurrency(accountBalanceService.normalizeCurrency(sourceAccount))
+                .targetCurrency(accountBalanceService.normalizeCurrency(targetAccount))
+                .exchangeRate(conversionQuote.rate())
+                .exchangeRateQuotedAt(conversionQuote.quotedAt())
                 .description(description)
                 .build());
 
@@ -150,16 +170,17 @@ public class AccountCommandHandler {
      * Выдать кредит на счёт (пополнение баланса счета).
      */
     public OperationAcceptedResponse loanDisbursement(UUID accountId, LoanDisbursementRequest command) {
-        log.debug("loanDisbursement: accountId={}, creditId={}, amount={}", accountId, command.getCreditId(), command.getAmount());
-        findActiveAccountForUpdateOrThrow(accountId);
-        long amountInKopecks = toKopecks(command.getAmount());
+        log.debug("loanDisbursement: accountId={}, creditId={}, amount={}", accountId, command.getCreditId(),
+                command.getAmount());
+        accountLookupService.findActiveByIdForUpdateOrThrow(accountId);
+        long amountInMinorUnits = toMinorUnits(command.getAmount());
         UUID operationId = UUID.randomUUID();
 
         operationMessageProducer.send(OperationMessage.builder()
                 .operationId(operationId)
                 .commandType(AccountCommandType.LOAN_DISBURSEMENT)
                 .sourceAccountId(accountId)
-                .amount(amountInKopecks)
+                .amount(amountInMinorUnits)
                 .description(command.getDescription() != null ? command.getDescription() : "Выдача кредита")
                 .creditId(command.getCreditId())
                 .build());
@@ -171,17 +192,18 @@ public class AccountCommandHandler {
      * Погасить кредит со счёта (снятие со счета).
      */
     public OperationAcceptedResponse loanRepayment(UUID accountId, LoanRepaymentRequest command) {
-        log.debug("loanRepayment: accountId={}, creditId={}, amount={}", accountId, command.getCreditId(), command.getAmount());
-        long amountInKopecks = toKopecks(command.getAmount());
-        AccountEntity account = findActiveAccountForUpdateOrThrow(accountId);
-        validateSufficientFunds(account, amountInKopecks);
+        log.debug("loanRepayment: accountId={}, creditId={}, amount={}", accountId, command.getCreditId(),
+                command.getAmount());
+        long amountInMinorUnits = toMinorUnits(command.getAmount());
+        AccountEntity account = accountLookupService.findActiveByIdForUpdateOrThrow(accountId);
+        accountBalanceService.ensureSufficientFunds(account, amountInMinorUnits);
         UUID operationId = UUID.randomUUID();
 
         operationMessageProducer.send(OperationMessage.builder()
                 .operationId(operationId)
                 .commandType(AccountCommandType.LOAN_REPAYMENT)
                 .sourceAccountId(accountId)
-                .amount(amountInKopecks)
+                .amount(amountInMinorUnits)
                 .description(command.getDescription() != null ? command.getDescription() : "Погашение кредита")
                 .creditId(command.getCreditId())
                 .build());
@@ -189,29 +211,13 @@ public class AccountCommandHandler {
         return new OperationAcceptedResponse(operationId, "QUEUED");
     }
 
-
-    private AccountEntity findActiveAccountForUpdateOrThrow(UUID accountId) {
-        AccountEntity account = accountRepository.findByIdForUpdate(accountId)
-                .orElseThrow(() -> new NotFoundException("Счёт не найден: " + accountId));
-        if (account.getStatus() == AccountStatus.CLOSED) {
-            throw new BusinessException("Счёт закрыт: " + account.getId());
-        }
-        return account;
-    }
-
-    private void validateSufficientFunds(AccountEntity account, long amountInKopecks) {
-        if (account.getBalance() < amountInKopecks) {
-            throw new BusinessException("Недостаточно средств на счёте: " + account.getId());
-        }
-    }
-
-    private long toKopecks(BigDecimal amount) {
+    private long toMinorUnits(BigDecimal amount) {
         try {
-            Long amountInKopecks = moneyMapper.rublesToKopecks(amount);
-            if (amountInKopecks == null) {
+            Long amountInMinorUnits = moneyMapper.majorToMinor(amount);
+            if (amountInMinorUnits == null) {
                 throw new BusinessException("Сумма обязательна");
             }
-            return amountInKopecks;
+            return amountInMinorUnits;
         } catch (ArithmeticException e) {
             throw new BusinessException("Некорректный формат суммы");
         }

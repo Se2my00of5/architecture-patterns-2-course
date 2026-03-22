@@ -1,9 +1,25 @@
 import apiClient from './client';
 
+/**
+ * @typedef {import('../types/api').Account} Account
+ * @typedef {import('../types/api').CreateAccountRequest} CreateAccountRequest
+ * @typedef {import('../types/api').DepositRequest} DepositRequest
+ * @typedef {import('../types/api').WithdrawRequest} WithdrawRequest
+ * @typedef {import('../types/api').TransferRequest} TransferRequest
+ * @typedef {import('../types/api').Operation} Operation
+ * @typedef {import('../types/api').ApiResponse} ApiResponse
+ */
+
 const ACCOUNTS_API_URL = 'http://localhost:1111/api/accounts';
 
 export const accountsApi = {
-
+  /**
+   * @param {string} sourceAccountId
+   * @param {string} targetAccountId
+   * @param {number} amount
+   * @param {string} [description]
+   * @returns {Promise<ApiResponse<Account>>}
+   */
   transfer: async (sourceAccountId, targetAccountId, amount, description = '') => {
     try {
       const response = await apiClient.post(`${ACCOUNTS_API_URL}/${sourceAccountId}/transfer`, {
@@ -32,6 +48,10 @@ export const accountsApi = {
     }
   },
 
+  /**
+   * @param {string} userId
+   * @returns {Promise<ApiResponse<Account[]>>}
+   */
   getUserAccounts: async (userId) => {
     try {
       const response = await apiClient.get(`${ACCOUNTS_API_URL}/user/${userId}`);
@@ -56,6 +76,11 @@ export const accountsApi = {
     }
   },
 
+  /**
+   * @param {string} userId
+   * @param {string} [currency]
+   * @returns {Promise<ApiResponse<Account>>}
+   */
   createAccount: async (userId, currency = 'RUB') => {
     try {
       const response = await apiClient.post(ACCOUNTS_API_URL, { 
@@ -83,6 +108,12 @@ export const accountsApi = {
     }
   },
 
+  /**
+   * @param {string} accountId
+   * @param {number} amount
+   * @param {string} [description]
+   * @returns {Promise<ApiResponse<Account>>}
+   */
   deposit: async (accountId, amount, description = '') => {
     try {
       const response = await apiClient.post(`${ACCOUNTS_API_URL}/${accountId}/deposit`, {
@@ -110,6 +141,12 @@ export const accountsApi = {
     }
   },
 
+  /**
+   * @param {string} accountId
+   * @param {number} amount
+   * @param {string} [description]
+   * @returns {Promise<ApiResponse<Account>>}
+   */
   withdraw: async (accountId, amount, description = '') => {
     try {
       const response = await apiClient.post(`${ACCOUNTS_API_URL}/${accountId}/withdraw`, {
@@ -137,6 +174,10 @@ export const accountsApi = {
     }
   },
 
+  /**
+   * @param {string} accountId
+   * @returns {Promise<ApiResponse<Account>>}
+   */
   closeAccount: async (accountId) => {
     try {
       const response = await apiClient.post(`${ACCOUNTS_API_URL}/${accountId}/close`, {});
@@ -161,6 +202,10 @@ export const accountsApi = {
     }
   },
 
+  /**
+   * @param {string} accountId
+   * @returns {Promise<ApiResponse<Operation[]>>}
+   */
   getAccountOperations: async (accountId) => {
     try {
       const response = await apiClient.get(`${ACCOUNTS_API_URL}/${accountId}/operations`);

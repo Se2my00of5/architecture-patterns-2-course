@@ -36,8 +36,8 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://core_service_db:5432/core_service_db
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - USER_SERVICE_BASE_URL=http://user-service-backend:1115
-      - SERVICE_CLIENT_ID=${SERVICE_CLIENT_ID:-service-app}
-      - SERVICE_CLIENT_SECRET=${SERVICE_CLIENT_SECRET:-service-app-secret}
+      - SERVICE_CLIENT_ID=${SERVICE_CLIENT_ID}
+      - SERVICE_CLIENT_SECRET=${SERVICE_CLIENT_SECRET}
       - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
     ports:
       - "1111:1111"

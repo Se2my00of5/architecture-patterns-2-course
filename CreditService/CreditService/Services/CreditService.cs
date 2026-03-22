@@ -187,23 +187,33 @@ namespace CreditService.Services
                 throw new InvalidOperationException("Credit not found");
             }
 
+            // Ищем просроченные платежи
+            var overduePayment = credit.Payments
+                .FirstOrDefault(p => p.Status == PaymentStatus.Overdue && p.DueDate < DateTime.UtcNow);
 
-            // Создаем платеж
             var payment = new CreditPayment
             {
                 Id = Guid.NewGuid(),
                 CreditId = credit.Id,
-                Amount = dto.Amount,
-                PaymentDate = DateTime.UtcNow
+                Amount = overduePayment?.Amount ?? dto.Amount,
+                PaymentDate = DateTime.UtcNow,
+                DueDate = DateTime.UtcNow.AddDays(30),
+                Status = PaymentStatus.Pending
             };
 
-
-            // Отправляем запрос в ядро для списания средств
-             var result = await NotifyCoreAboutPayment(dto.AccountId, credit.Id, dto.Amount);
+            var result = await NotifyCoreAboutPayment(dto.AccountId, credit.Id, payment.Amount);
 
             if (result)
             {
-                credit.RemainingAmount -= dto.Amount;
+                payment.Status = PaymentStatus.Completed;
+
+                if (overduePayment != null)
+                {
+                    overduePayment.Status = PaymentStatus.Completed;
+                    overduePayment.PaymentDate = DateTime.UtcNow;
+                }
+
+                credit.RemainingAmount -= payment.Amount;
 
                 if (credit.RemainingAmount <= 0)
                 {
@@ -217,21 +227,72 @@ namespace CreditService.Services
             }
             else
             {
+                payment.Status = PaymentStatus.Overdue;
+                _context.CreditPayments.Add(payment);
+                await _context.SaveChangesAsync();
                 credit.Status = CreditStatus.Overdue;
                 await _context.SaveChangesAsync();
             }
 
-
-            var paymentDto = new CreditPaymentDto
-            {
-                Id = payment.Id,
-                CreditId = payment.CreditId,
-                Amount = payment.Amount,
-                PaymentDate = payment.PaymentDate
-            };
-
-            return paymentDto;
+            return MapToCreditPaymentDto(payment);
         }
+
+        //public async Task<CreditPaymentDto> MakePaymentAsync(MakePaymentDto dto)
+        //{
+        //    var credit = await _context.Credits
+        //        .Include(c => c.Payments)
+        //        .FirstOrDefaultAsync(c => c.Id == dto.CreditId);
+
+        //    if (credit == null)
+        //    {
+        //        throw new InvalidOperationException("Credit not found");
+        //    }
+
+
+        //    // Создаем платеж
+        //    var payment = new CreditPayment
+        //    {
+        //        Id = Guid.NewGuid(),
+        //        CreditId = credit.Id,
+        //        Amount = dto.Amount,
+        //        PaymentDate = DateTime.UtcNow
+        //    };
+
+
+        //    // Отправляем запрос в ядро для списания средств
+        //    var result = await NotifyCoreAboutPayment(dto.AccountId, credit.Id, dto.Amount);
+
+        //    if (result)
+        //    {
+        //        credit.RemainingAmount -= dto.Amount;
+
+        //        if (credit.RemainingAmount <= 0)
+        //        {
+        //            credit.RemainingAmount = 0;
+        //            credit.Status = CreditStatus.Paid;
+        //            credit.EndDate = DateTime.UtcNow;
+        //        }
+
+        //        _context.CreditPayments.Add(payment);
+        //        await _context.SaveChangesAsync();
+        //    }
+        //    else
+        //    {
+        //        credit.Status = CreditStatus.Overdue;
+        //        await _context.SaveChangesAsync();
+        //    }
+
+
+        //    var paymentDto = new CreditPaymentDto
+        //    {
+        //        Id = payment.Id,
+        //        CreditId = payment.CreditId,
+        //        Amount = payment.Amount,
+        //        PaymentDate = payment.PaymentDate
+        //    };
+
+        //    return paymentDto;
+        //}
 
         public async Task<IEnumerable<CreditPaymentDto>> GetCreditPaymentsAsync(Guid creditId)
         {
@@ -339,7 +400,110 @@ namespace CreditService.Services
             return false;
 
         }
+
+
+
+        // Получение просроченных платежей по кредиту
+        public async Task<IEnumerable<CreditPaymentDto>> GetOverduePaymentsAsync(Guid creditId)
+        {
+            var payments = await _context.CreditPayments
+                .Where(p => p.CreditId == creditId &&
+                            p.Status == PaymentStatus.Overdue &&
+                            p.DueDate < DateTime.UtcNow)
+                .OrderBy(p => p.DueDate)
+                .ToListAsync();
+
+            return payments.Select(MapToCreditPaymentDto);
+        }
+
+        // Получение всех просроченных платежей клиента
+        public async Task<IEnumerable<CreditPaymentDto>> GetClientOverduePaymentsAsync(Guid clientId)
+        {
+            var payments = await _context.CreditPayments
+                .Include(p => p.Credit)
+                .Where(p => p.Credit.ClientId == clientId &&
+                            p.Status == PaymentStatus.Overdue &&
+                            p.DueDate < DateTime.UtcNow)
+                .OrderBy(p => p.DueDate)
+                .ToListAsync();
+
+            return payments.Select(MapToCreditPaymentDto);
+        }
+
+
+
+        // Расчет кредитного рейтинга
+        public async Task<CreditRatingDto> GetCreditRatingAsync(Guid clientId)
+        {
+            var credits = await _context.Credits
+                .Include(c => c.Payments)
+                .Where(c => c.ClientId == clientId)
+                .ToListAsync();
+
+            if (!credits.Any())
+            {
+                return new CreditRatingDto
+                {
+                    ClientId = clientId,
+                    Score = 700, // Начальный рейтинг
+                    Grade = "C",
+                    TotalCredits = 0,
+                    PaidCredits = 0,
+                    OverduePayments = 0,
+                    OnTimePaymentRate = 0
+                };
+            }
+
+            var totalCredits = credits.Count;
+            var paidCredits = credits.Count(c => c.Status == CreditStatus.Paid);
+            var allPayments = credits.SelectMany(c => c.Payments).ToList();
+            var totalPayments = allPayments.Count;
+            var overduePayments = allPayments.Count(p => p.Status == PaymentStatus.Overdue);
+            var onTimePayments = allPayments.Count(p => p.Status == PaymentStatus.Completed);
+
+            var score = 700;
+            score += (paidCredits * 50);
+            score -= (overduePayments * 25);
+
+            if (totalPayments > 0)
+            {
+                var onTimeRate = (decimal)onTimePayments / totalPayments;
+                score += (int)(onTimeRate * 100);
+
+                if (onTimeRate > 0.95m) score += 50;
+                else if (onTimeRate > 0.8m) score += 20;
+                else if (onTimeRate < 0.5m) score -= 50;
+            }
+
+            score = Math.Max(300, Math.Min(850, score));
+
+            string grade = score switch
+            {
+                >= 750 => "A",
+                >= 700 => "B",
+                >= 650 => "C",
+                >= 600 => "D",
+                _ => "F"
+            };
+
+            return new CreditRatingDto
+            {
+                ClientId = clientId,
+                Score = score,
+                Grade = grade,
+                TotalCredits = totalCredits,
+                PaidCredits = paidCredits,
+                OverduePayments = overduePayments,
+                OnTimePaymentRate = totalPayments > 0
+                    ? Math.Round((decimal)onTimePayments / totalPayments * 100, 2)
+                    : 0
+            };
+        }
+
+       
+
+
+
+
     }
-
-
 }

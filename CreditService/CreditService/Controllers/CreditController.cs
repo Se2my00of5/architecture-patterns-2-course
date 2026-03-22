@@ -139,5 +139,34 @@ namespace CreditService.Controllers
             return Ok(payments);
         }
 
+
+        [HttpGet("{creditId}/payments/overdue")]
+        [SwaggerOperation(Summary = "Получение просроченных платежей по кредиту")]
+        public async Task<ActionResult<IEnumerable<CreditPaymentDto>>> GetOverduePayments(Guid creditId)
+        {
+            var payments = await _creditService.GetOverduePaymentsAsync(creditId);
+            return Ok(payments);
+        }
+
+
+        [HttpGet("client/{clientId}/payments/overdue")]
+        [SwaggerOperation(Summary = "Получение всех просроченных платежей клиента")]
+        public async Task<ActionResult<IEnumerable<CreditPaymentDto>>> GetClientOverduePayments(Guid clientId)
+        {
+            var payments = await _creditService.GetClientOverduePaymentsAsync(clientId);
+            return Ok(payments);
+        }
+
+
+        [HttpGet("client/{clientId}/rating")]
+        [SwaggerOperation(Summary = "Получение кредитного рейтинга клиента")]
+        public async Task<ActionResult<CreditRatingDto>> GetClientCreditRating(Guid clientId)
+        {
+            var rating = await _creditService.GetCreditRatingAsync(clientId);
+            return Ok(rating);
+        }
+
+
+
     }
 }

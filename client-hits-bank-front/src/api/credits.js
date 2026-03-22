@@ -14,6 +14,41 @@ const CREDITS_API_URL = 'http://localhost:5005/api/Credit';
 export const creditsApi = {
   /**
    * @param {string} clientId
+   * @returns {Promise<ApiResponse<Array<{
+   *   id: string;
+   *   creditId: string;
+   *   paymentDate: string;
+   *   dueDate: string;
+   *   status: string;
+   *   transactionId: string | null;
+   * }>>>}
+   */
+  getClientOverduePayments: async (clientId) => {
+    try {
+      const response = await apiClient.get(`${CREDITS_API_URL}/client/${clientId}/payments/overdue`);
+      return { 
+        success: true, 
+        data: response.data,
+        status: response.status 
+      };
+    } catch (error) {
+      if (error.response) {
+        return { 
+          success: false, 
+          error: error.response.data.message || 'Ошибка при получении просроченных платежей',
+          status: error.response.status
+        };
+      }
+      return { 
+        success: false, 
+        error: 'Ошибка при получении просроченных платежей',
+        status: 500
+      };
+    }
+  },
+
+  /**
+   * @param {string} clientId
    * @returns {Promise<ApiResponse<CreditRating>>}
    */
   getClientRating: async (clientId) => {

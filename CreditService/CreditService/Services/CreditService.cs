@@ -2,6 +2,7 @@
 using CreditService.Models;
 using CreditService.Models.DTOs;
 using Microsoft.EntityFrameworkCore;
+using System.Net.Http.Headers;
 using System.Text.Json;
 
 namespace CreditService.Services
@@ -11,12 +12,14 @@ namespace CreditService.Services
         private readonly CreditDbContext _context;
         private readonly HttpClient _httpClient;
         private readonly ILogger<CreditService> _logger;
+        private readonly TokenService _tokenService;
 
-        public CreditService(CreditDbContext context, HttpClient httpClient, ILogger<CreditService> logger)
+        public CreditService(CreditDbContext context, HttpClient httpClient, ILogger<CreditService> logger, TokenService tokenService)
         {
             _context = context;
             _httpClient = httpClient;
             _logger = logger;
+            _tokenService = tokenService;
         }
 
         // Управление тарифами
@@ -358,11 +361,15 @@ namespace CreditService.Services
 
         private async Task NotifyCoreAboutCreditIssuance(Credit credit)
         {
+            var token = await _tokenService.GetServiceTokenAsync();
+
             var request = new
             {
                 creditId = credit.Id,
                 amount = credit.Amount
             };
+
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-disbursement", credit.AccountId);
 
@@ -381,11 +388,15 @@ namespace CreditService.Services
 
         private async Task<bool> NotifyCoreAboutPayment(Guid accountId, Guid id, decimal amount_)
         {
+            var token = await _tokenService.GetServiceTokenAsync();
+
             var request = new
             {
                 creditId = id,
                 amount = amount_
             };
+
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-repayment", accountId);
             var response = await _httpClient.PostAsJsonAsync(url, request);

@@ -1,9 +1,12 @@
 using CreditService.Data;
 using CreditService.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Net;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,6 +14,29 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        var publicKey = builder.Configuration["JWT_PUBLIC_KEY"]
+            ?? throw new InvalidOperationException("JWT_PUBLIC_KEY missing");
+
+        var rsa = RSA.Create();
+        rsa.ImportFromPem(publicKey);
+
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = builder.Configuration["JWT_ISSUER"] ?? "user-service",
+            ValidateAudience = true,
+            ValidAudience = builder.Configuration["JWT_AUDIENCE"] ?? "credit-service",
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new RsaSecurityKey(rsa)
+        };
+    });
+
+builder.Services.AddAuthorization();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -53,6 +79,17 @@ builder.Services.AddHttpClient("UserService", client =>
 
 builder.Services.AddScoped<CreditService.Services.CreditService>();
 builder.Services.AddHostedService<PaymentProcessingService>();
+
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<TokenService, TokenService>();
+builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
+
+// Добавить политики
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("EmployeeOnly", policy =>
+        policy.RequireClaim("role", "EMPLOYEE"));
+});
 
 
 // Настройка CORS

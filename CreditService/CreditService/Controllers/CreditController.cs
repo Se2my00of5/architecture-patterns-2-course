@@ -1,24 +1,29 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using CreditService.Models;
 using CreditService.Models.DTOs;
 using CreditService.Services;
-using CreditService.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace CreditService.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class CreditController : ControllerBase
     {
         private readonly Services.CreditService _creditService;
+        private readonly IAuthorizationService _authz;
 
-        public CreditController(Services.CreditService creditService)
+        public CreditController(Services.CreditService creditService, IAuthorizationService authz)
         {
             _creditService = creditService;
+            _authz = authz;
         }
 
         // Управление тарифами
         [HttpPost("tariffs")]
+        [Authorize(Policy = "EmployeeOnly")]
         [SwaggerOperation(
             Summary = "Создание нового тарифа",
             Description = "Создает новый кредитный тариф"
@@ -57,6 +62,7 @@ namespace CreditService.Controllers
         }
 
         [HttpDelete("tariffs/{id}")]
+        [Authorize(Policy = "EmployeeOnly")]
         [SwaggerOperation(Summary = "Удаление тарифа")]
         public async Task<IActionResult> DeactivateTariff(Guid id)
         {
@@ -74,6 +80,11 @@ namespace CreditService.Controllers
         {
             try
             {
+                var userId = User.FindFirst("sub")?.Value;
+
+                if (userId != dto.ClientId.ToString())
+                    return Forbid();
+
                 var credit = await _creditService.ApplyForCreditAsync(dto);
                 return StatusCode(201, credit);
             }
@@ -89,6 +100,7 @@ namespace CreditService.Controllers
 
         // Информация о кредитах
         [HttpGet]
+        [Authorize(Policy = "EmployeeOnly")]
         [SwaggerOperation(Summary = "Получение информации о всех кредитах")]
         public async Task<ActionResult<IEnumerable<Credit>>> GetAllCredits()
         {
@@ -100,6 +112,11 @@ namespace CreditService.Controllers
         [SwaggerOperation(Summary = "Получение информации о кредите по id")]
         public async Task<ActionResult<Credit>> GetCredit(Guid id)
         {
+            var userId = User.FindFirst("sub")?.Value;
+
+            if (!await _authz.CanViewCredit(userId, id))
+                return Forbid();
+
             var credit = await _creditService.GetCreditByIdAsync(id);
             if (credit == null)
                 return NotFound();
@@ -111,6 +128,11 @@ namespace CreditService.Controllers
         [SwaggerOperation(Summary = "Получение всех кредитов клиента")]
         public async Task<ActionResult<IEnumerable<Credit>>> GetClientCredits(Guid clientId)
         {
+            var userId = User.FindFirst("sub")?.Value;
+
+            if (!await _authz.CanViewClientCredits(userId, clientId))
+                return Forbid();
+
             var credits = await _creditService.GetClientCreditsAsync(clientId);
             return Ok(credits);
         }

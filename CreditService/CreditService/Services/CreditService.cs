@@ -386,9 +386,37 @@ namespace CreditService.Services
         }
 
 
+        //private async Task<bool> NotifyCoreAboutPayment(Guid accountId, Guid id, decimal amount_)
+        //{
+        //    var token = await _tokenService.GetServiceTokenAsync();
+
+        //    var request = new
+        //    {
+        //        creditId = id,
+        //        amount = amount_
+        //    };
+
+        //    _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        //    string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-repayment", accountId);
+        //    var response = await _httpClient.PostAsJsonAsync(url, request);
+
+        //    var responseBody = await response.Content.ReadAsStringAsync();
+
+        //    if (response.IsSuccessStatusCode)
+        //    {
+        //        return true;
+
+        //    }
+        //    return false;
+
+        //}
         private async Task<bool> NotifyCoreAboutPayment(Guid accountId, Guid id, decimal amount_)
         {
             var token = await _tokenService.GetServiceTokenAsync();
+
+            _logger.LogInformation("Sending notification to core-service. Token prefix: {TokenPrefix}",
+                token?.Substring(0, Math.Min(20, token?.Length ?? 0)));
 
             var request = new
             {
@@ -399,17 +427,25 @@ namespace CreditService.Services
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-repayment", accountId);
+
+            //  Логируем URL и заголовки
+            _logger.LogInformation("POST {Url}, Authorization: {Auth}",
+                url, _httpClient.DefaultRequestHeaders.Authorization?.ToString());
+
             var response = await _httpClient.PostAsJsonAsync(url, request);
 
             var responseBody = await response.Content.ReadAsStringAsync();
 
+            //  Логируем ответ
+            _logger.LogInformation("Core-service response: {StatusCode}, Body: {Body}",
+                response.StatusCode, responseBody);
+
             if (response.IsSuccessStatusCode)
             {
                 return true;
-
             }
-            return false;
 
+            return false;
         }
 
 

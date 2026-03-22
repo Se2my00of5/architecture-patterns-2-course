@@ -52,7 +52,7 @@ namespace CreditService.Services
             var token = await _tokenService.GetServiceTokenAsync();
 
             var request = new HttpRequestMessage(HttpMethod.Get,
-                $"http://user-service-backend/api/users/{userId}");
+                $"http://user-service-backend:1115/api/users/{userId}");
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var response = await _httpClient.SendAsync(request);

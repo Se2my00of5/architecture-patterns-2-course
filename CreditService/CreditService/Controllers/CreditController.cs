@@ -74,27 +74,62 @@ namespace CreditService.Controllers
         }
 
         // Заявки на кредит
+        //[HttpPost("apply")]
+        //[SwaggerOperation(Summary = "Взятие кредита")]
+        //public async Task<ActionResult<Credit>> ApplyForCredit([FromBody] ApplyForCreditDto dto)
+        //{
+        //    try
+        //    {
+        //        var userId = User.FindFirst("sub")?.Value;
+
+        //        if (userId != dto.ClientId.ToString())
+        //            return Forbid();
+
+        //        var credit = await _creditService.ApplyForCreditAsync(dto);
+        //        return StatusCode(201, credit);
+        //    }
+        //    catch (InvalidOperationException ex)
+        //    {
+        //        return BadRequest();
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return StatusCode(500);
+        //    }
+        //}
         [HttpPost("apply")]
-        [SwaggerOperation(Summary = "Взятие кредита")]
         public async Task<ActionResult<Credit>> ApplyForCredit([FromBody] ApplyForCreditDto dto)
         {
             try
             {
-                var userId = User.FindFirst("sub")?.Value;
+                var userId = User.FindFirst("user_id")?.Value;
+
+                if (userId == null)
+                {
+                    return BadRequest(new
+                    {
+                        error = "User ID not found in token",
+                        claims = User.Claims.Select(c => new { c.Type, c.Value })
+                    });
+                }
 
                 if (userId != dto.ClientId.ToString())
-                    return Forbid();
+                {
+                    return BadRequest(new
+                    {
+                        error = "User ID mismatch",
+                        tokenUserId = userId,
+                        requestClientId = dto.ClientId.ToString(),
+                        areEqual = userId == dto.ClientId.ToString()
+                    });
+                }
 
                 var credit = await _creditService.ApplyForCreditAsync(dto);
                 return StatusCode(201, credit);
             }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest();
-            }
             catch (Exception ex)
             {
-                return StatusCode(500);
+                return StatusCode(500, new { error = ex.Message });
             }
         }
 
@@ -112,7 +147,7 @@ namespace CreditService.Controllers
         [SwaggerOperation(Summary = "Получение информации о кредите по id")]
         public async Task<ActionResult<Credit>> GetCredit(Guid id)
         {
-            var userId = User.FindFirst("sub")?.Value;
+            var userId = User.FindFirst("user_id")?.Value;
 
             if (!await _authz.CanViewCredit(userId, id))
                 return Forbid();
@@ -128,7 +163,7 @@ namespace CreditService.Controllers
         [SwaggerOperation(Summary = "Получение всех кредитов клиента")]
         public async Task<ActionResult<IEnumerable<Credit>>> GetClientCredits(Guid clientId)
         {
-            var userId = User.FindFirst("sub")?.Value;
+            var userId = User.FindFirst("user_id")?.Value;
 
             if (!await _authz.CanViewClientCredits(userId, clientId))
                 return Forbid();

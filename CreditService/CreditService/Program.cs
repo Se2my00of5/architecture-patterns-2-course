@@ -31,15 +31,66 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         var rsa = RSA.Create();
         rsa.ImportFromPem(publicKey);
 
+        Console.WriteLine($" RSA Key loaded: {rsa.KeySize} bits");
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = true,
-            ValidIssuer = builder.Configuration["JWT_ISSUER"] ?? "user-service",
-            ValidateAudience = true,
-            ValidAudience = builder.Configuration["JWT_AUDIENCE"] ?? "credit-service",
+            //ValidateIssuer = true,
+            //ValidIssuer = builder.Configuration["JWT_ISSUER"] ?? "user-service",
+            //ValidateAudience = true,
+            //ValidAudience = builder.Configuration["JWT_AUDIENCE"] ?? "credit-service",
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new RsaSecurityKey(rsa)
+            IssuerSigningKey = new RsaSecurityKey(rsa),
+
+            ValidateIssuer = false,
+            ValidateAudience = false,
+
+
+            ValidIssuer = "http://localhost:1115",         
+            ValidAudiences = new[] { "frontend-app", "credit-service" },  
+
+            NameClaimType = "user_id",
+            RoleClaimType = "roles"
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                Console.WriteLine("=== OnMessageReceived ===");
+                Console.WriteLine($"Token from header: {context.Request.Headers["Authorization"]}");
+                Console.WriteLine($"Token from query: {context.Request.Query["access_token"]}");
+                return Task.CompletedTask;
+            },
+
+            OnTokenValidated = context =>
+            {
+                Console.WriteLine("=== OnTokenValidated ===");
+                Console.WriteLine($"Principal: {context.Principal != null}");
+                if (context.Principal != null)
+                {
+                    var claims = context.Principal.Claims.Select(c => $"{c.Type}={c.Value}");
+                    Console.WriteLine($"Claims: {string.Join(", ", claims)}");
+                }
+                return Task.CompletedTask;
+            },
+
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine("=== OnAuthenticationFailed ===");
+                Console.WriteLine($"Exception: {context.Exception.Message}");
+                Console.WriteLine($"Stack trace: {context.Exception.StackTrace}");
+                return Task.CompletedTask;
+            },
+
+            OnChallenge = context =>
+            {
+                Console.WriteLine("=== OnChallenge ===");
+                Console.WriteLine($"Error: {context.Error}");
+                Console.WriteLine($"Error Description: {context.ErrorDescription}");
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -95,7 +146,7 @@ builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("EmployeeOnly", policy =>
-        policy.RequireClaim("role", "EMPLOYEE"));
+        policy.RequireClaim("roles", "EMPLOYEE"));
 });
 
 

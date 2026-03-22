@@ -1,15 +1,40 @@
-import axios from 'axios';
+import apiClient from './client';
 
 const ACCOUNTS_API_URL = 'http://localhost:1111/api/accounts';
 
 export const accountsApi = {
+
+  transfer: async (sourceAccountId, targetAccountId, amount, description = '') => {
+    try {
+      const response = await apiClient.post(`${ACCOUNTS_API_URL}/${sourceAccountId}/transfer`, {
+        targetAccountId,
+        amount,
+        description
+      });
+      return { 
+        success: true, 
+        data: response.data,
+        status: response.status 
+      };
+    } catch (error) {
+      if (error.response) {
+        return { 
+          success: false, 
+          error: error.response.data.message,
+          status: error.response.status
+        };
+      }
+      return { 
+        success: false, 
+        error: 'Ошибка при выполнении перевода',
+        status: 500
+      };
+    }
+  },
+
   getUserAccounts: async (userId) => {
     try {
-      const response = await axios.get(`${ACCOUNTS_API_URL}/user/${userId}`, {
-        headers: {
-          'accept': '*/*'
-        }
-      });
+      const response = await apiClient.get(`${ACCOUNTS_API_URL}/user/${userId}`);
       return { 
         success: true, 
         data: response.data,
@@ -31,18 +56,12 @@ export const accountsApi = {
     }
   },
 
-  createAccount: async (userId) => {
+  createAccount: async (userId, currency = 'RUB') => {
     try {
-      const response = await axios.post(
-        ACCOUNTS_API_URL,
-        { userId },
-        {
-          headers: {
-            'accept': '*/*',
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const response = await apiClient.post(ACCOUNTS_API_URL, { 
+        userId,
+        currency 
+      });
       return { 
         success: true, 
         data: response.data,
@@ -66,16 +85,10 @@ export const accountsApi = {
 
   deposit: async (accountId, amount, description = '') => {
     try {
-      const response = await axios.post(
-        `${ACCOUNTS_API_URL}/${accountId}/deposit`,
-        { amount, description },
-        {
-          headers: {
-            'accept': '*/*',
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const response = await apiClient.post(`${ACCOUNTS_API_URL}/${accountId}/deposit`, {
+        amount,
+        description
+      });
       return { 
         success: true, 
         data: response.data,
@@ -99,16 +112,10 @@ export const accountsApi = {
 
   withdraw: async (accountId, amount, description = '') => {
     try {
-      const response = await axios.post(
-        `${ACCOUNTS_API_URL}/${accountId}/withdraw`,
-        { amount, description },
-        {
-          headers: {
-            'accept': '*/*',
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const response = await apiClient.post(`${ACCOUNTS_API_URL}/${accountId}/withdraw`, {
+        amount,
+        description
+      });
       return { 
         success: true, 
         data: response.data,
@@ -132,15 +139,7 @@ export const accountsApi = {
 
   closeAccount: async (accountId) => {
     try {
-      const response = await axios.post(
-        `${ACCOUNTS_API_URL}/${accountId}/close`,
-        {},
-        {
-          headers: {
-            'accept': '*/*'
-          }
-        }
-      );
+      const response = await apiClient.post(`${ACCOUNTS_API_URL}/${accountId}/close`, {});
       return { 
         success: true, 
         data: response.data,
@@ -164,11 +163,7 @@ export const accountsApi = {
 
   getAccountOperations: async (accountId) => {
     try {
-      const response = await axios.get(`${ACCOUNTS_API_URL}/${accountId}/operations`, {
-        headers: {
-          'accept': '*/*'
-        }
-      });
+      const response = await apiClient.get(`${ACCOUNTS_API_URL}/${accountId}/operations`);
       return { 
         success: true, 
         data: response.data,

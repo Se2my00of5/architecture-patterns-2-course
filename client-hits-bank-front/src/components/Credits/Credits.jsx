@@ -12,6 +12,7 @@ const Credits = () => {
   
   const [tariffs, setTariffs] = useState([]);
   const [accounts, setAccounts] = useState([]);
+  const [rating, setRating] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   
@@ -36,16 +37,47 @@ const Credits = () => {
     
     const accountsResult = await accountsApi.getUserAccounts(user.id);
     if (accountsResult.success) {
-      const activeAccounts = accountsResult.data.filter(acc => acc.status === 'ACTIVE');
-      setAccounts(activeAccounts);
-      if (activeAccounts.length === 0) {
-        toast.warning('У вас нет активных счетов для зачисления кредита');
+      const activeRubAccounts = accountsResult.data.filter(
+        acc => acc.status === 'ACTIVE' && acc.currency === 'RUB'
+      );
+      setAccounts(activeRubAccounts);
+      if (activeRubAccounts.length === 0) {
+        toast.warning('У вас нет рублевых счетов для зачисления кредита');
       }
     } else {
       toast.error('Ошибка при загрузке счетов');
     }
     
+    const ratingResult = await creditsApi.getClientRating(user.id);
+    if (ratingResult.success) {
+      setRating(ratingResult.data);
+    } else {
+      console.log('Rating not available');
+    }
+    
     setLoading(false);
+  };
+
+  const getGradeColor = (grade) => {
+    switch (grade) {
+      case 'A': return '#28a745';
+      case 'B': return '#5cb85c';
+      case 'C': return '#ffc107';
+      case 'D': return '#fd7e14';
+      case 'F': return '#dc3545';
+      default: return '#6c757d';
+    }
+  };
+
+  const getGradeText = (grade) => {
+    switch (grade) {
+      case 'A': return 'Отлично';
+      case 'B': return 'Хорошо';
+      case 'C': return 'Средне';
+      case 'D': return 'Ниже среднего';
+      case 'F': return 'Плохо';
+      default: return grade;
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -104,6 +136,14 @@ const Credits = () => {
     }).format(value);
   };
 
+  if (loading) {
+    return (
+      <div className="credit-loading">
+        <div className="loading-spinner-large"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="credit-application">
       <div className="credit-header">
@@ -145,9 +185,32 @@ const Credits = () => {
 
         <div className="application-form-section">
           <h3>Параметры кредита</h3>
+          
+          {rating && (
+            <div className="rating-card">
+              <div className="rating-header">Ваш кредитный рейтинг</div>
+              <div className="rating-content">
+                <div 
+                  className="rating-grade" 
+                  style={{ backgroundColor: getGradeColor(rating.grade) }}
+                >
+                  {rating.grade}
+                </div>
+                <div className="rating-info">
+                  <div className="rating-score">Счет: {rating.score}</div>
+                  <div className="rating-description">{getGradeText(rating.grade)}</div>
+                  <div className="rating-stats">
+                    <span>Всего кредитов: {rating.totalCredits}</span>
+                    <span>Просрочек: {rating.overduePayments}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="credit-form">
             <div className="form-group">
-              <label>Счет зачисления *</label>
+              <label>Счет зачисления (только RUB) *</label>
               <select
                 value={selectedAccount}
                 onChange={(e) => setSelectedAccount(e.target.value)}
@@ -163,7 +226,7 @@ const Credits = () => {
               </select>
               {accounts.length === 0 && (
                 <p className="warning-text">
-                  Нет активных счетов. Сначала откройте счет.
+                  Нет рублевых счетов. Сначала откройте рублевый счет.
                 </p>
               )}
             </div>

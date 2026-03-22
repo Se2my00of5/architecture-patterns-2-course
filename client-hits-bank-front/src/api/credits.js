@@ -1,15 +1,39 @@
-import axios from 'axios';
+import apiClient from './client';
 
 const CREDITS_API_URL = 'http://localhost:5005/api/Credit';
 
 export const creditsApi = {
-  getActiveTariffs: async () => {
+  getClientRating: async (clientId) => {
     try {
-      const response = await axios.get(`${CREDITS_API_URL}/tariffs?onlyActive=true`, {
+      const response = await apiClient.get(`${CREDITS_API_URL}/client/${clientId}/rating`, {
         headers: {
           'accept': 'text/plain'
         }
       });
+      return { 
+        success: true, 
+        data: response.data,
+        status: response.status 
+      };
+    } catch (error) {
+      if (error.response) {
+        return { 
+          success: false, 
+          error: error.response.data.message || 'Ошибка при получении кредитного рейтинга',
+          status: error.response.status
+        };
+      }
+      return { 
+        success: false, 
+        error: 'Ошибка при получении кредитного рейтинга',
+        status: 500
+      };
+    }
+  },
+
+  getActiveTariffs: async () => {
+    try {
+      const response = await apiClient.get(`${CREDITS_API_URL}/tariffs?onlyActive=true`);
       return { 
         success: true, 
         data: response.data,
@@ -33,22 +57,13 @@ export const creditsApi = {
 
   applyForCredit: async (clientId, accountId, tariffId, amount, termInMonths) => {
     try {
-      const response = await axios.post(
-        `${CREDITS_API_URL}/apply`,
-        {
-          clientId,
-          accountId,
-          tariffId,
-          amount,
-          termInMonths
-        },
-        {
-          headers: {
-            'accept': 'text/plain',
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const response = await apiClient.post(`${CREDITS_API_URL}/apply`, {
+        clientId,
+        accountId,
+        tariffId,
+        amount,
+        termInMonths
+      });
       return { 
         success: true, 
         data: response.data,
@@ -72,11 +87,7 @@ export const creditsApi = {
 
   getClientCredits: async (clientId) => {
     try {
-      const response = await axios.get(`${CREDITS_API_URL}/client/${clientId}`, {
-        headers: {
-          'accept': 'text/plain'
-        }
-      });
+      const response = await apiClient.get(`${CREDITS_API_URL}/client/${clientId}`);
       return { 
         success: true, 
         data: response.data,
@@ -98,22 +109,13 @@ export const creditsApi = {
     }
   },
 
-    makePayment: async (creditId, accountId, amount) => {
+  makePayment: async (creditId, accountId, amount) => {
     try {
-      const response = await axios.post(
-        `${CREDITS_API_URL}/payments`,
-        {
-          creditId,
-          accountId,
-          amount
-        },
-        {
-          headers: {
-            'accept': 'text/plain',
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const response = await apiClient.post(`${CREDITS_API_URL}/payments`, {
+        creditId,
+        accountId,
+        amount
+      });
       return { 
         success: true, 
         data: response.data,
@@ -133,5 +135,5 @@ export const creditsApi = {
         status: 500
       };
     }
-  },
+  }
 };

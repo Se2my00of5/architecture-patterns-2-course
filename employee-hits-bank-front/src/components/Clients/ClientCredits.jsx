@@ -8,20 +8,28 @@ const ClientCredits = () => {
   const { clientId } = useParams();
   const navigate = useNavigate();
   const [credits, setCredits] = useState([]);
+  const [rating, setRating] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadCredits();
+    loadData();
   }, [clientId]);
 
-  const loadCredits = async () => {
+  const loadData = async () => {
     setLoading(true);
-    const result = await creditsApi.getClientCredits(clientId);
-    if (result.success) {
-      setCredits(result.data);
+    
+    const creditsResult = await creditsApi.getClientCredits(clientId);
+    if (creditsResult.success) {
+      setCredits(creditsResult.data);
     } else {
       toast.error('Ошибка при загрузке кредитов');
     }
+    
+    const ratingResult = await creditsApi.getClientRating(clientId);
+    if (ratingResult.success) {
+      setRating(ratingResult.data);
+    }
+    
     setLoading(false);
   };
 
@@ -76,6 +84,36 @@ const ClientCredits = () => {
     }
   };
 
+  const getGradeColor = (grade) => {
+    switch (grade) {
+      case 'A': return '#28a745';
+      case 'B': return '#5cb85c';
+      case 'C': return '#ffc107';
+      case 'D': return '#fd7e14';
+      case 'F': return '#dc3545';
+      default: return '#6c757d';
+    }
+  };
+
+  const getGradeText = (grade) => {
+    switch (grade) {
+      case 'A': return 'Отлично';
+      case 'B': return 'Хорошо';
+      case 'C': return 'Средне';
+      case 'D': return 'Ниже среднего';
+      case 'F': return 'Плохо';
+      default: return grade;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="credits-loading">
+        <div className="loading-spinner-large"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="client-credits">
       <div className="credits-header">
@@ -89,6 +127,29 @@ const ClientCredits = () => {
           ID клиента: {clientId}
         </div>
       </div>
+
+      {rating && (
+        <div className="rating-card">
+          <div className="rating-header">Кредитный рейтинг клиента</div>
+          <div className="rating-content">
+            <div 
+              className="rating-grade" 
+              style={{ backgroundColor: getGradeColor(rating.grade) }}
+            >
+              {rating.grade}
+            </div>
+            <div className="rating-info">
+              <div className="rating-score">Счет: {rating.score}</div>
+              <div className="rating-description">{getGradeText(rating.grade)}</div>
+              <div className="rating-stats">
+                <span>Всего кредитов: {rating.totalCredits}</span>
+                <span>Просрочек: {rating.overduePayments}</span>
+                <span>Доля своевременных: {rating.onTimePaymentRate}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {credits.length === 0 ? (
         <div className="no-credits">

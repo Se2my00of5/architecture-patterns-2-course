@@ -27,12 +27,6 @@
     color: #346cb0;
 }
 
-.login-subtitle {
-    color: #6c757d;
-    margin-bottom: 2rem;
-    font-size: 0.95rem;
-}
-
 .form-group {
     margin-bottom: 1.5rem;
     text-align: left;
@@ -88,19 +82,4 @@
 .login-button:disabled {
     background-color: #a0aec0;
     cursor: not-allowed;
-}
-
-.login-footer {
-    margin-top: 2rem;
-    color: #6c757d;
-    font-size: 0.85rem;
-}
-
-.login-footer a {
-    color: #346cb0;
-    text-decoration: none;
-}
-
-.login-footer a:hover {
-    text-decoration: underline;
 }

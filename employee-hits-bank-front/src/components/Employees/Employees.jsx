@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import { usersApi } from '../../api/users';
 import { useAuth } from '../../contexts/AuthContext';
-import CreateEmployeeModal from './CreateEmployeeModal';
+import CreateUserModal from '../common/CreateUserModal';
 import './Employees.css';
 
 const Employees = () => {
@@ -51,15 +51,15 @@ const Employees = () => {
     }
   };
 
-  const handleCreateEmployee = async (login, fullName) => {
-    const result = await usersApi.createEmployee(login, fullName);
-    
+  const handleCreateUser = async (login, password, fullName, roles) => {
+    const result = await usersApi.createUser(login, password, fullName, roles);
+  
     if (result.success) {
-      toast.success('Сотрудник успешно создан');
+      toast.success('Пользователь успешно создан');
       setShowCreateModal(false);
       loadEmployees();
     } else {
-      toast.error(result.error || 'Ошибка при создании сотрудника');
+      toast.error(result.error || 'Ошибка при создании');
     }
   };
 
@@ -148,9 +148,9 @@ const Employees = () => {
       )}
 
       {showCreateModal && (
-        <CreateEmployeeModal
+        <CreateUserModal
           onClose={() => setShowCreateModal(false)}
-          onSubmit={handleCreateEmployee}
+          onSubmit={handleCreateUser}
         />
       )}
     </div>

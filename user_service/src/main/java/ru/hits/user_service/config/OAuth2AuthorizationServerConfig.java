@@ -121,7 +121,10 @@ public class OAuth2AuthorizationServerConfig {
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-                .redirectUri(frontendRedirectUri)
+                .redirectUris(uris -> {
+                    uris.add(frontendRedirectUri);
+                    uris.add("http://localhost:3001/login/oauth2/code/frontend-app");
+            })
                 .scope("api")
                 .clientSettings(ClientSettings.builder()
                         .requireProofKey(true)

@@ -1,16 +1,11 @@
-import axios from 'axios';
+import apiClient from './client';
 
 const CREDITS_API_URL = 'http://localhost:5005/api/Credit';
 
 export const creditsApi = {
-
   getAllTariffs: async () => {
     try {
-      const response = await axios.get(`${CREDITS_API_URL}/tariffs?onlyActive=false`, {
-        headers: {
-          'accept': 'text/plain'
-        }
-      });
+      const response = await apiClient.get(`${CREDITS_API_URL}/tariffs?onlyActive=false`);
       return { 
         success: true, 
         data: response.data,
@@ -34,19 +29,10 @@ export const creditsApi = {
 
   createTariff: async (name, interestRate) => {
     try {
-      const response = await axios.post(
-        `${CREDITS_API_URL}/tariffs`,
-        {
-          name,
-          interestRate
-        },
-        {
-          headers: {
-            'accept': 'text/plain',
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const response = await apiClient.post(`${CREDITS_API_URL}/tariffs`, {
+        name,
+        interestRate
+      });
       return { 
         success: true, 
         data: response.data,
@@ -68,13 +54,9 @@ export const creditsApi = {
     }
   },
 
-    getClientCredits: async (clientId) => {
+  getClientCredits: async (clientId) => {
     try {
-      const response = await axios.get(`${CREDITS_API_URL}/client/${clientId}`, {
-        headers: {
-          'accept': 'text/plain'
-        }
-      });
+      const response = await apiClient.get(`${CREDITS_API_URL}/client/${clientId}`);
       return { 
         success: true, 
         data: response.data,
@@ -95,4 +77,28 @@ export const creditsApi = {
       };
     }
   },
+
+  getClientRating: async (clientId) => {
+    try {
+      const response = await apiClient.get(`${CREDITS_API_URL}/client/${clientId}/rating`);
+      return { 
+        success: true, 
+        data: response.data,
+        status: response.status 
+      };
+    } catch (error) {
+      if (error.response) {
+        return { 
+          success: false, 
+          error: error.response.data.message || 'Ошибка при получении рейтинга',
+          status: error.response.status
+        };
+      }
+      return { 
+        success: false, 
+        error: 'Ошибка при получении рейтинга',
+        status: 500
+      };
+    }
+  }
 };

@@ -18,8 +18,15 @@ builder.Services.AddControllers();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        var publicKey = builder.Configuration["JWT_PUBLIC_KEY"]
-            ?? throw new InvalidOperationException("JWT_PUBLIC_KEY missing");
+        var publicKey = @"-----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApc+cdf/J+LenJlS3Wm4x
+    H4j+jFU7oNUbC+v+qMh956/DfVlRhGWo2aL+ZzuyWWUMpz9IpJwX4z+OhgtJ5Gb5
+    Ropy+oN5Cr+C3IBnZ7h1sj1fGlCTRTSIslutxdYOFPKSgBz+lD3+sihbtRmajZJt
+    cK6Lo6/q7l4lYnTI0Ye5wOk/Hisj2Un2JOsnzynlRPYK2nZLnp/cStr8H/V5/3s3
+    eskIq6uvZUXB7STDJVwG3Dc7rP0PYZcqc5ElvfEtSVSsQNWoXw07lPu5ekjrik2T
+    JYuLseQD7JSDjgeHBTyLow81m8Zx48We00tsS0n19+A/ni5E8EyRoEYDcLnW9QaS
+    XwIDAQAB
+    -----END PUBLIC KEY-----";
 
         var rsa = RSA.Create();
         rsa.ImportFromPem(publicKey);

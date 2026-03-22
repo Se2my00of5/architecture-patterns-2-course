@@ -1,6 +1,10 @@
 import axios from 'axios';
 import { oauthService } from './oauthService';
 
+/**
+ * @typedef {import('../types/api').ApiError} ApiError
+ */
+
 const apiClient = axios.create();
 
 apiClient.interceptors.request.use(async (config) => {
@@ -13,6 +17,9 @@ apiClient.interceptors.request.use(async (config) => {
 
 apiClient.interceptors.response.use(
   (response) => response,
+  /**
+   * @param {import('axios').AxiosError<ApiError>} error
+   */
   async (error) => {
     const originalRequest = error.config;
     

@@ -1,15 +1,24 @@
 import apiClient from './client';
 
+/**
+ * @typedef {import('../types/api').Tariff} Tariff
+ * @typedef {import('../types/api').ApplyCreditRequest} ApplyCreditRequest
+ * @typedef {import('../types/api').Credit} Credit
+ * @typedef {import('../types/api').CreditRating} CreditRating
+ * @typedef {import('../types/api').MakePaymentRequest} MakePaymentRequest
+ * @typedef {import('../types/api').ApiResponse} ApiResponse
+ */
+
 const CREDITS_API_URL = 'http://localhost:5005/api/Credit';
 
 export const creditsApi = {
+  /**
+   * @param {string} clientId
+   * @returns {Promise<ApiResponse<CreditRating>>}
+   */
   getClientRating: async (clientId) => {
     try {
-      const response = await apiClient.get(`${CREDITS_API_URL}/client/${clientId}/rating`, {
-        headers: {
-          'accept': 'text/plain'
-        }
-      });
+      const response = await apiClient.get(`${CREDITS_API_URL}/client/${clientId}/rating`);
       return { 
         success: true, 
         data: response.data,
@@ -31,6 +40,9 @@ export const creditsApi = {
     }
   },
 
+  /**
+   * @returns {Promise<ApiResponse<Tariff[]>>}
+   */
   getActiveTariffs: async () => {
     try {
       const response = await apiClient.get(`${CREDITS_API_URL}/tariffs?onlyActive=true`);
@@ -55,6 +67,14 @@ export const creditsApi = {
     }
   },
 
+  /**
+   * @param {string} clientId
+   * @param {string} accountId
+   * @param {string} tariffId
+   * @param {number} amount
+   * @param {number} termInMonths
+   * @returns {Promise<ApiResponse<Credit>>}
+   */
   applyForCredit: async (clientId, accountId, tariffId, amount, termInMonths) => {
     try {
       const response = await apiClient.post(`${CREDITS_API_URL}/apply`, {
@@ -85,6 +105,10 @@ export const creditsApi = {
     }
   },
 
+  /**
+   * @param {string} clientId
+   * @returns {Promise<ApiResponse<Credit[]>>}
+   */
   getClientCredits: async (clientId) => {
     try {
       const response = await apiClient.get(`${CREDITS_API_URL}/client/${clientId}`);
@@ -109,6 +133,12 @@ export const creditsApi = {
     }
   },
 
+  /**
+   * @param {string} creditId
+   * @param {string} accountId
+   * @param {number} amount
+   * @returns {Promise<ApiResponse<object>>}
+   */
   makePayment: async (creditId, accountId, amount) => {
     try {
       const response = await apiClient.post(`${CREDITS_API_URL}/payments`, {

@@ -1,3 +1,10 @@
+/**
+ * @typedef {import('../types/api').OAuth2TokenResponse} OAuth2TokenResponse
+ * @typedef {import('../types/api').OAuth2UserInfo} OAuth2UserInfo
+ * @typedef {import('../types/api').OAuth2Tokens} OAuth2Tokens
+ * @typedef {import('../types/api').OAuth2User} OAuth2User
+ */
+
 const USER_SERVICE_URL = 'http://localhost:1115';
 const REDIRECT_URI = 'http://localhost:3001/login/oauth2/code/frontend-app';
 
@@ -42,40 +49,47 @@ export const oauthService = {
     return { codeVerifier, codeChallenge };
   },
   
-async handleCallback(code, state) {
-  const processedCode = sessionStorage.getItem('processed_code');
-  if (processedCode === code) {
-    console.log('Code already processed, skipping');
-    return { success: false, error: 'Code already used' };
-  }
-  
-  const codeVerifier = sessionStorage.getItem('oauth_code_verifier');
-  
-  const params = new URLSearchParams({
-    grant_type: 'authorization_code',
-    code: code,
-    redirect_uri: REDIRECT_URI,
-    client_id: 'frontend-app',
-    client_secret: 'frontend-app-secret'
-  });
-  
-  if (codeVerifier) {
-    params.append('code_verifier', codeVerifier);
-  }
-  
-  const response = await fetch(`${USER_SERVICE_URL}/oauth2/token`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: params
-  });
-  
-  const data = await response.json();
+  /**
+   * @param {string} code
+   * @param {string} state
+   * @returns {Promise<{ success: boolean; user?: OAuth2User; error?: string }>}
+   */
+  async handleCallback(code, state) {
+    const processedCode = sessionStorage.getItem('processed_code');
+    if (processedCode === code) {
+      console.log('Code already processed, skipping');
+      return { success: false, error: 'Code already used' };
+    }
+    
+    const codeVerifier = sessionStorage.getItem('oauth_code_verifier');
+    
+    const params = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: code,
+      redirect_uri: REDIRECT_URI,
+      client_id: 'frontend-app',
+      client_secret: 'frontend-app-secret'
+    });
+    
+    if (codeVerifier) {
+      params.append('code_verifier', codeVerifier);
+    }
+    
+    const response = await fetch(`${USER_SERVICE_URL}/oauth2/token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: params
+    });
+    
+    /** @type {OAuth2TokenResponse} */
+    const data = await response.json();
     
     if (response.ok) {
       sessionStorage.setItem('processed_code', code);
 
+      /** @type {OAuth2Tokens} */
       const tokens = {
         accessToken: data.access_token,
         refreshToken: data.refresh_token,
@@ -85,6 +99,7 @@ async handleCallback(code, state) {
       
       localStorage.setItem('oauth_tokens', JSON.stringify(tokens));
       
+      /** @type {OAuth2UserInfo} */
       const userInfo = this.parseJwt(data.access_token);
       
       const roles = userInfo.roles;
@@ -93,6 +108,7 @@ async handleCallback(code, state) {
         throw new Error('Доступ только для сотрудников банка');
       }
       
+      /** @type {OAuth2User} */
       const user = {
         id: userInfo.user_id,
         login: userInfo.login,
@@ -111,11 +127,16 @@ async handleCallback(code, state) {
     return { success: false, error: data.error_description || data.message };
   },
 
+  /**
+   * @returns {Promise<string | null>}
+   */
   async refreshToken() {
     const tokens = localStorage.getItem('oauth_tokens');
     if (!tokens) return null;
     
-    const { refreshToken } = JSON.parse(tokens);
+    /** @type {OAuth2Tokens} */
+    const parsed = JSON.parse(tokens);
+    const refreshToken = parsed.refreshToken;
     if (!refreshToken) return null;
     
     const params = new URLSearchParams({
@@ -134,9 +155,11 @@ async handleCallback(code, state) {
         body: params
       });
       
+      /** @type {OAuth2TokenResponse} */
       const data = await response.json();
       
       if (response.ok) {
+        /** @type {OAuth2Tokens} */
         const newTokens = {
           accessToken: data.access_token,
           refreshToken: data.refresh_token || refreshToken,
@@ -156,6 +179,9 @@ async handleCallback(code, state) {
     }
   },
   
+  /**
+   * @returns {Promise<string | null>}
+   */
   async ensureValidToken() {
     if (this.isTokenExpired()) {
       return await this.refreshToken();
@@ -163,6 +189,10 @@ async handleCallback(code, state) {
     return this.getAccessToken();
   },
   
+  /**
+   * @param {string} token
+   * @returns {OAuth2UserInfo}
+   */
   parseJwt(token) {
     try {
       const base64Url = token.split('.')[1];
@@ -177,16 +207,24 @@ async handleCallback(code, state) {
     }
   },
   
+  /**
+   * @returns {string | null}
+   */
   getAccessToken() {
     const tokens = localStorage.getItem('oauth_tokens');
     if (!tokens) return null;
+    /** @type {OAuth2Tokens} */
     const parsed = JSON.parse(tokens);
     return parsed.accessToken;
   },
   
+  /**
+   * @returns {boolean}
+   */
   isTokenExpired() {
     const tokens = localStorage.getItem('oauth_tokens');
     if (!tokens) return true;
+    /** @type {OAuth2Tokens} */
     const { expiresAt } = JSON.parse(tokens);
     return Date.now() >= expiresAt - 60000;
   },

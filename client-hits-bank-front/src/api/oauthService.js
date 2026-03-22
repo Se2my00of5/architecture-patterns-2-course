@@ -86,6 +86,12 @@ export const oauthService = {
       
       const userInfo = this.parseJwt(data.access_token);
       
+      const roles = userInfo.roles;
+      if (!roles || !roles.includes('CLIENT')) {
+        this.logout();
+        throw new Error('Доступ только для клиентов банка');
+      }
+      
       localStorage.setItem('user', JSON.stringify({
         id: userInfo.user_id,
         login: userInfo.login,

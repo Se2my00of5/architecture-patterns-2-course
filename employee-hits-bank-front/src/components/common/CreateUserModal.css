@@ -1,0 +1,121 @@
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
+.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--bg-card, white);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  width: 90%;
+  max-width: 450px;
+  max-height: 90vh;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.modal-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  color: var(--text-primary, #333);
+}
+
+.modal-fields {
+  margin-bottom: 1rem;
+}
+
+.modal-fields label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--text-secondary, #495057);
+  font-size: 0.9rem;
+}
+
+.modal-fields input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color, #e9ecef);
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  background-color: var(--input-bg, white);
+  color: var(--text-primary, #333);
+  transition: border-color 0.2s;
+}
+
+.modal-fields input:focus {
+  outline: none;
+  border-color: #346cb0;
+  box-shadow: 0 0 0 2px rgba(52, 108, 176, 0.2);
+}
+
+.checkbox-group {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 0.5rem;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: normal;
+  font-size: 0.95rem;
+  color: var(--text-primary, #333);
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #346cb0;
+}
+
+/* Кнопки */
+.create-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.create-buttons button {
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.create-buttons .save {
+  background-color: #346cb0;
+  color: white;
+}
+
+.create-buttons .save:hover {
+  background-color: #2b5a92;
+}
+
+.create-buttons .cancel {
+  background-color: #6c757d;
+  color: white;
+}
+
+.create-buttons .cancel:hover {
+  background-color: #5a6268;
+}

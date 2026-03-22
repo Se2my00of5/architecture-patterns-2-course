@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import { usersApi } from '../../api/users';
-import CreateClientModal from './CreateClientModal';
+import CreateUserModal from '../common/CreateUserModal';
 import './Clients.css';
 
 const Clients = () => {
@@ -16,7 +16,7 @@ const Clients = () => {
   }, []);
 
   const loadClients = async () => {
-    setLoading(true);
+    setLoading(true); 
     const result = await usersApi.getClients();
     if (result.success) {
       setClients(result.data);
@@ -48,15 +48,15 @@ const Clients = () => {
     }
   };
 
-  const handleCreateClient = async (login, fullName) => {
-    const result = await usersApi.createClient(login, fullName);
-    
+  const handleCreateUser = async (login, password, fullName, roles) => {
+    const result = await usersApi.createUser(login, password, fullName, roles);
+  
     if (result.success) {
-      toast.success('Клиент успешно создан');
+      toast.success('Пользователь успешно создан');
       setShowCreateModal(false);
       loadClients();
     } else {
-      toast.error(result.error || 'Ошибка при создании клиента');
+      toast.error(result.error || 'Ошибка при создании');
     }
   };
 
@@ -71,6 +71,14 @@ const Clients = () => {
   const activeClients = clients.filter(client => !client.isBlocked);
   const blockedClients = clients.filter(client => client.isBlocked);
 
+  if (loading) {
+    return (
+      <div className="clients-loading">
+        <div className="loading-spinner-large"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="clients">
       <div className="clients-header">
@@ -82,7 +90,7 @@ const Clients = () => {
             className="create-button"
             onClick={() => setShowCreateModal(true)}
           >
-            + Новый клиент
+            + Добавить
           </button>
         </div>
         <h2>Клиенты банка</h2>
@@ -142,6 +150,9 @@ const Clients = () => {
                   <div className="client-name">
                     <span className="label">ФИО:</span> {client.fullName}
                   </div>
+                  <div className="client-login">
+                    <span className="label">логин:</span> {client.login}
+                  </div>
                 </div>
                 
                 <div className="client-actions">
@@ -177,9 +188,9 @@ const Clients = () => {
       )}
 
       {showCreateModal && (
-        <CreateClientModal
+        <CreateUserModal
           onClose={() => setShowCreateModal(false)}
-          onSubmit={handleCreateClient}
+          onSubmit={handleCreateUser}
         />
       )}
     </div>

@@ -28,12 +28,13 @@ export const usersApi = {
     }
   },
 
-  createClient: async (login, fullName) => {
+  createUser: async (login, password, fullName, roles) => {
     try {
       const response = await apiClient.post(`${API_BASE_URL}`, {
         login,
+        password,
         fullName,
-        role: 'CLIENT'
+        roles
       });
       return { 
         success: true, 
@@ -50,7 +51,7 @@ export const usersApi = {
       }
       return { 
         success: false, 
-        error: 'Ошибка при создании клиента',
+        error: 'Ошибка при создании пользователя',
         status: 500
       };
     }

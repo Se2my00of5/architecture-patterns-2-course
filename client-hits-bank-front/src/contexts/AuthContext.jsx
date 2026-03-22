@@ -30,9 +30,37 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
   };
 
-  const logout = () => {
-    oauthService.logout();
-  };
+ const logout = async () => {
+     try {
+       const tokens = localStorage.getItem('oauth_tokens');
+       let refreshToken = null;
+       
+       if (tokens) {
+         const parsed = JSON.parse(tokens);
+         refreshToken = parsed.refreshToken;
+       }
+       
+       await fetch('http://localhost:1115/api/auth/logout', {
+         method: 'POST',
+         headers: {
+           'Content-Type': 'application/json',
+           'Authorization': `Bearer ${oauthService.getAccessToken()}`
+         },
+         body: JSON.stringify({
+           refreshToken: refreshToken
+         }),
+         credentials: 'include'
+       });
+     } catch (error) {
+       console.error('Logout error:', error);
+     }
+     
+     localStorage.removeItem('oauth_tokens');
+     localStorage.removeItem('user');
+     sessionStorage.clear();
+     
+     window.location.href = '/';
+   };
 
   const value = {
     user,

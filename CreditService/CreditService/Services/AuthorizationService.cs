@@ -52,14 +52,23 @@ namespace CreditService.Services
             var token = await _tokenService.GetServiceTokenAsync();
 
             var request = new HttpRequestMessage(HttpMethod.Get,
-                $"http://user-service/api/users/{userId}/roles");
+                $"http://user-service/api/users/{userId}");
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var response = await _httpClient.SendAsync(request);
             if (!response.IsSuccessStatusCode) return false;
 
-            var roles = await response.Content.ReadFromJsonAsync<List<string>>();
-            return roles?.Contains("Employee") == true;
+            var user = await response.Content.ReadFromJsonAsync<UserResponse>();
+            return user?.Roles?.Contains("EMPLOYEE") == true;
+        }
+
+        public class UserResponse
+        {
+            public Guid Id { get; set; }
+            public string Login { get; set; } = "";
+            public string FullName { get; set; } = "";
+            public List<string> Roles { get; set; } = new();
+            public bool IsBlocked { get; set; }
         }
     }
 }

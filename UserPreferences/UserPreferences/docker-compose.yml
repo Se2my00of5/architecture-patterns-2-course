@@ -1,0 +1,31 @@
+﻿version: '3.8'
+
+services:
+  preferences-service:
+    build: .
+    env_file:
+      - ../../.env
+    ports:
+      - "5001:5001"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5001;
+      - ConnectionStrings__DefaultConnection=Host=preferences-db;Database=PreferencesDb;Username=postgres;Password=postgres
+    depends_on:
+      - preferences-db
+    networks:
+      - bank_network 
+
+  preferences-db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: PreferencesDb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - preferences-data:/var/lib/postgresql/data
+    networks:
+      - bank_network 
+
+volumes:
+  preferences-data:

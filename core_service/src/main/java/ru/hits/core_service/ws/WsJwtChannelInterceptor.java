@@ -8,13 +8,17 @@ import org.springframework.messaging.MessagingException;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.stereotype.Component;
 import ru.hits.shared_security.JwtSecurityUtils;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @RequiredArgsConstructor
@@ -24,11 +28,14 @@ public class WsJwtChannelInterceptor implements ChannelInterceptor {
     private final JwtDecoder jwtDecoder;
     private final WsAccountAccessService wsAccountAccessService;
     private final JwtAuthenticationConverter jwtAuthenticationConverter = JwtSecurityUtils.jwtAuthenticationConverter();
+    
+    private final Map<String, Authentication> sessionAuth = new ConcurrentHashMap<>();
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
         StompCommand command = accessor.getCommand();
+        String sessionId = accessor.getSessionId();
 
         if (StompCommand.CONNECT.equals(command)) {
             String bearerToken = resolveBearer(accessor);
@@ -42,37 +49,44 @@ public class WsJwtChannelInterceptor implements ChannelInterceptor {
                 throw new MessagingException("WS JWT authentication failed");
             }
 
-            accessor.setUser(authentication);
+            if (sessionId != null) {
+                sessionAuth.put(sessionId, authentication);
+                log.debug("WebSocket CONNECT authenticated: {}, session: {}", authentication.getName(), sessionId);
+            }
+            
             return message;
         }
 
         if (StompCommand.SUBSCRIBE.equals(command)) {
-        // Временно отключаем проверку авторизации для разработки
-        // var user = accessor.getUser();
-        // 
-        // if (user == null && accessor.getSessionAttributes() != null) {
-        //     user = (org.springframework.security.core.Authentication) accessor.getSessionAttributes().get("user");
-        // }
-        // 
-        // if (!(user instanceof org.springframework.security.core.Authentication authentication)) {
-        //     log.error("No authentication for SUBSCRIBE, user: {}, session: {}", 
-        //         user, accessor.getSessionAttributes());
-        //     throw new MessagingException("WS SUBSCRIBE requires authenticated user");
-        // }
+            Authentication authentication = null;
+            if (sessionId != null) {
+                authentication = sessionAuth.get(sessionId);
+            }
+            
+            if (authentication == null) {
+                log.error("No authentication for SUBSCRIBE, sessionId: {}", sessionId);
+                throw new MessagingException("WS SUBSCRIBE requires authenticated user");
+            }
 
-        UUID accountId = extractAccountId(accessor.getDestination());
-        if (accountId == null) {
-            throw new MessagingException("Invalid subscribe destination: " + accessor.getDestination());
+            UUID accountId = extractAccountId(accessor.getDestination());
+            if (accountId == null) {
+                throw new MessagingException("Invalid subscribe destination: " + accessor.getDestination());
+            }
+
+            if (!wsAccountAccessService.canSubscribe(authentication, accountId)) {
+                throw new MessagingException("Access denied for account subscription: " + accountId);
+            }
+            
+            log.debug("WebSocket SUBSCRIBE authorized for account: {}, user: {}", accountId, authentication.getName());
+            return message;
         }
 
-        // Временно отключаем проверку прав доступа
-        // if (!wsAccountAccessService.canSubscribe(authentication, accountId)) {
-        //     throw new MessagingException("Access denied for account subscription: " + accountId);
-        // }
-        
-        log.debug("WebSocket SUBSCRIBE (auth bypassed) for account: {}", accountId);
-        return message;
-    }
+        if (StompCommand.DISCONNECT.equals(command)) {
+            if (sessionId != null) {
+                sessionAuth.remove(sessionId);
+                log.debug("WebSocket DISCONNECT, session: {}", sessionId);
+            }
+        }
 
         return message;
     }

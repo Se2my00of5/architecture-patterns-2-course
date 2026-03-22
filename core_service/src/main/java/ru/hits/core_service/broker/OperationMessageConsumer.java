@@ -49,6 +49,12 @@ public class OperationMessageConsumer {
             return;
         }
 
+        log.info("Received account command: operationId={}, type={}, sourceAccountId={}, targetAccountId={}",
+                message.getOperationId(),
+                message.getCommandType(),
+                message.getSourceAccountId(),
+                message.getTargetAccountId());
+
         try {
             switch (message.getCommandType()) {
                 case DEPOSIT -> handleDeposit(message);
@@ -58,6 +64,8 @@ public class OperationMessageConsumer {
                 case LOAN_REPAYMENT -> handleLoanRepayment(message);
                 default -> throw new BusinessException("Неизвестный тип команды: " + message.getCommandType());
             }
+            log.info("Processed account command: operationId={}, type={}",
+                    message.getOperationId(), message.getCommandType());
         } catch (NotFoundException | BusinessException ex) {
             log.warn("Skip account command operationId={}, type={}, reason={}",
                     message.getOperationId(), message.getCommandType(), ex.getMessage());
@@ -66,6 +74,7 @@ public class OperationMessageConsumer {
 
     private void handleDeposit(OperationMessage message) {
         AccountEntity account = accountLookupService.findActiveByIdForUpdateOrThrow(message.getSourceAccountId());
+        long previousBalance = account.getBalance();
         account.setBalance(accountBalanceService.addAmounts(account.getBalance(), message.getAmount()));
         accountRepository.save(account);
 
@@ -75,11 +84,19 @@ public class OperationMessageConsumer {
                 .amount(message.getAmount())
                 .description(message.getDescription())
                 .build());
+        log.info("Deposit applied: operationId={}, accountId={}, amount={}, balanceBefore={}, balanceAfter={}, recordId={}",
+                message.getOperationId(),
+                account.getId(),
+                message.getAmount(),
+                previousBalance,
+                account.getBalance(),
+                operation.getId());
         operationWsPublisher.publishCreated(operation);
     }
 
     private void handleWithdraw(OperationMessage message) {
         AccountEntity account = accountLookupService.findActiveByIdForUpdateOrThrow(message.getSourceAccountId());
+        long previousBalance = account.getBalance();
         account.setBalance(accountBalanceService.decreaseBalance(account, message.getAmount()));
         accountRepository.save(account);
 
@@ -89,6 +106,13 @@ public class OperationMessageConsumer {
                 .amount(message.getAmount())
                 .description(message.getDescription())
                 .build());
+        log.info("Withdraw applied: operationId={}, accountId={}, amount={}, balanceBefore={}, balanceAfter={}, recordId={}",
+                message.getOperationId(),
+                account.getId(),
+                message.getAmount(),
+                previousBalance,
+                account.getBalance(),
+                operation.getId());
         operationWsPublisher.publishCreated(operation);
     }
 
@@ -117,6 +141,15 @@ public class OperationMessageConsumer {
                 .description(transferInDescription)
                 .build());
 
+        log.info("Transfer applied: operationId={}, sourceAccountId={}, targetAccountId={}, sourceAmount={}, targetAmount={}, outRecordId={}, inRecordId={}",
+                message.getOperationId(),
+                sourceAccount.getId(),
+                targetAccount.getId(),
+                message.getAmount(),
+                targetAmount,
+                outOperation.getId(),
+                inOperation.getId());
+
         operationWsPublisher.publishCreated(outOperation);
         operationWsPublisher.publishCreated(inOperation);
     }
@@ -127,12 +160,20 @@ public class OperationMessageConsumer {
         long targetAmount = movement.targetAmount();
 
         LoanOperationEntity operation = operationRepository.save(LoanOperationEntity.builder()
-            .account(targetAccount)
-            .type(OperationType.LOAN_DISBURSEMENT)
-            .amount(targetAmount)
-            .description(message.getDescription())
-            .creditId(message.getCreditId())
-            .build());
+                .account(targetAccount)
+                .type(OperationType.LOAN_DISBURSEMENT)
+                .amount(targetAmount)
+                .description(message.getDescription())
+                .creditId(message.getCreditId())
+                .build());
+        log.info("Loan disbursement applied: operationId={}, creditId={}, sourceAccountId={}, targetAccountId={}, sourceAmount={}, targetAmount={}, recordId={}",
+                message.getOperationId(),
+                message.getCreditId(),
+                movement.sourceAccount().getId(),
+                targetAccount.getId(),
+                message.getAmount(),
+                targetAmount,
+                operation.getId());
         operationWsPublisher.publishCreated(operation);
     }
 
@@ -141,12 +182,19 @@ public class OperationMessageConsumer {
         AccountEntity sourceAccount = movement.sourceAccount();
 
         LoanOperationEntity operation = operationRepository.save(LoanOperationEntity.builder()
-            .account(sourceAccount)
-            .type(OperationType.LOAN_REPAYMENT)
-            .amount(message.getAmount())
-            .description(message.getDescription())
-            .creditId(message.getCreditId())
-            .build());
+                .account(sourceAccount)
+                .type(OperationType.LOAN_REPAYMENT)
+                .amount(message.getAmount())
+                .description(message.getDescription())
+                .creditId(message.getCreditId())
+                .build());
+        log.info("Loan repayment applied: operationId={}, creditId={}, sourceAccountId={}, targetAccountId={}, amount={}, recordId={}",
+                message.getOperationId(),
+                message.getCreditId(),
+                sourceAccount.getId(),
+                movement.targetAccount().getId(),
+                message.getAmount(),
+                operation.getId());
         operationWsPublisher.publishCreated(operation);
     }
 
@@ -180,6 +228,13 @@ public class OperationMessageConsumer {
         targetAccount.setBalance(accountBalanceService.addAmounts(targetAccount.getBalance(), targetAmount));
         accountRepository.save(sourceAccount);
         accountRepository.save(targetAccount);
+
+        log.info("Two-account movement committed: operationId={}, sourceAccountId={}, targetAccountId={}, sourceAmount={}, targetAmount={}",
+                message.getOperationId(),
+                sourceAccount.getId(),
+                targetAccount.getId(),
+                message.getAmount(),
+                targetAmount);
 
         return new MovementResult(sourceAccount, targetAccount, targetAmount);
     }

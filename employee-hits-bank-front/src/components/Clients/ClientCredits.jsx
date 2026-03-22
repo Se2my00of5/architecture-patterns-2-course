@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { useNavigate, useParams } from 'react-router-dom';
 import { creditsApi } from '../../api/credits';
+import OverduePaymentsModal from './OverduePaymentsModal';
 import './ClientCredits.css';
 
 const ClientCredits = () => {
@@ -10,6 +11,8 @@ const ClientCredits = () => {
   const [credits, setCredits] = useState([]);
   const [rating, setRating] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showOverdueModal, setShowOverdueModal] = useState(false);
+  const [overduePayments, setOverduePayments] = useState([]);
 
   useEffect(() => {
     loadData();
@@ -30,6 +33,20 @@ const ClientCredits = () => {
       setRating(ratingResult.data);
     }
     
+    setLoading(false);
+  };
+
+  const handleViewOverduePayments = async () => {
+    if (!rating || rating.overduePayments === 0) return;
+    
+    setLoading(true);
+    const result = await creditsApi.getClientOverduePayments(clientId);
+    if (result.success) {
+      setOverduePayments(result.data);
+      setShowOverdueModal(true);
+    } else {
+      toast.error(result.error || 'Ошибка при загрузке просроченных платежей');
+    }
     setLoading(false);
   };
 
@@ -143,7 +160,13 @@ const ClientCredits = () => {
               <div className="rating-description">{getGradeText(rating.grade)}</div>
               <div className="rating-stats">
                 <span>Всего кредитов: {rating.totalCredits}</span>
-                <span>Просрочек: {rating.overduePayments}</span>
+                <span 
+                  className={`overdue-stats ${rating.overduePayments > 0 ? 'clickable' : ''}`}
+                  onClick={handleViewOverduePayments}
+                >
+                  Просрочек: {rating.overduePayments}
+                  {rating.overduePayments > 0 && <span className="click-hint"> (нажмите для просмотра)</span>}
+                </span>
                 <span>Доля своевременных: {rating.onTimePaymentRate}%</span>
               </div>
             </div>
@@ -160,7 +183,7 @@ const ClientCredits = () => {
           {credits.map(credit => (
             <div key={credit.id} className="credit-card">
               <div className="credit-header-card">
-                <span className="credit-id">Кредит: {credit.id}</span>
+                <span className="credit-id">Кредит: {credit.id.slice(0, 8)}...</span>
                 <span className={`status-badge ${getStatusClass(credit.status)}`}>
                   {getStatusText(credit.status)}
                 </span>
@@ -217,6 +240,16 @@ const ClientCredits = () => {
             </div>
           ))}
         </div>
+      )}
+
+      {showOverdueModal && (
+        <OverduePaymentsModal
+          payments={overduePayments}
+          onClose={() => {
+            setShowOverdueModal(false);
+            setOverduePayments([]);
+          }}
+        />
       )}
     </div>
   );

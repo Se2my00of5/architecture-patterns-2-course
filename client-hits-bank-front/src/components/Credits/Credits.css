@@ -264,3 +264,27 @@
   padding: 0.2rem 0.5rem;
   border-radius: 0.25rem;
 }
+
+.overdue-stats {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
+  transition: all 0.2s;
+}
+
+.overdue-stats:not(.zero) {
+  cursor: pointer;
+  background-color: #dc3545;
+  color: white;
+}
+
+.overdue-stats:not(.zero):hover {
+  background-color: #c82333;
+  transform: scale(1.02);
+}
+
+.overdue-stats.zero {
+  background-color: #6c757d;
+  color: white;
+  cursor: default;
+}

@@ -51,6 +51,7 @@ public class AccountCommandHandler {
      * Открыть новый счёт для клиента.
      */
     public AccountResponse openAccount(OpenAccountRequest command) {
+        log.info("openAccount requested: userId={}, currency={}", command.getUserId(), command.getCurrency());
         if (!userServiceClient.userExists(command.getUserId())) {
             throw new NotFoundException("Пользователь не найден: " + command.getUserId());
         }
@@ -61,7 +62,10 @@ public class AccountCommandHandler {
                 .currency(command.getCurrency())
                 .status(AccountStatus.ACTIVE)
                 .build();
-        return accountMapper.toResponse(accountRepository.save(account));
+        AccountResponse response = accountMapper.toResponse(accountRepository.save(account));
+        log.info("openAccount completed: accountId={}, userId={}, currency={}, status={}",
+                response.getId(), response.getUserId(), response.getCurrency(), response.getStatus());
+        return response;
     }
 
     /**
@@ -69,6 +73,7 @@ public class AccountCommandHandler {
      * Проверка активных кредитов — ответственность сервиса кредитов.
      */
     public AccountResponse closeAccount(UUID accountId) {
+        log.info("closeAccount requested: accountId={}", accountId);
         AccountEntity account = accountLookupService.findActiveByIdForUpdateOrThrow(accountId);
 
         if (account.getBalance() != 0L) {
@@ -77,7 +82,9 @@ public class AccountCommandHandler {
 
         account.setStatus(AccountStatus.CLOSED);
         account.setClosedAt(LocalDateTime.now());
-        return accountMapper.toResponse(accountRepository.save(account));
+        AccountResponse response = accountMapper.toResponse(accountRepository.save(account));
+        log.info("closeAccount completed: accountId={}, closedAt={}", response.getId(), account.getClosedAt());
+        return response;
     }
 
     /**
@@ -98,6 +105,8 @@ public class AccountCommandHandler {
                 .description(command.getDescription() != null ? command.getDescription() : "Внесение средств на счёт")
                 .build());
 
+        log.info("deposit queued: operationId={}, accountId={}, amountMinor={}",
+                operationId, accountId, amountInMinorUnits);
         return new OperationAcceptedResponse(operationId, "QUEUED");
     }
 
@@ -120,6 +129,8 @@ public class AccountCommandHandler {
                 .description(command.getDescription() != null ? command.getDescription() : "Снятие средств со счёта")
                 .build());
 
+        log.info("withdraw queued: operationId={}, accountId={}, amountMinor={}",
+                operationId, accountId, amountInMinorUnits);
         return new OperationAcceptedResponse(operationId, "QUEUED");
     }
 
@@ -145,15 +156,18 @@ public class AccountCommandHandler {
                 ? command.getDescription()
                 : "Перевод средств";
 
-        return enqueueCrossAccountOperation(
-            operationId,
-            AccountCommandType.TRANSFER,
-            sourceAccount,
-            targetAccount,
-            amountInMinorUnits,
-            description,
-            null
+        OperationAcceptedResponse response = enqueueCrossAccountOperation(
+                operationId,
+                AccountCommandType.TRANSFER,
+                sourceAccount,
+                targetAccount,
+                amountInMinorUnits,
+                description,
+                null
         );
+        log.info("transfer queued: operationId={}, sourceAccountId={}, targetAccountId={}, sourceAmountMinor={}",
+                operationId, sourceAccount.getId(), targetAccount.getId(), amountInMinorUnits);
+        return response;
     }
 
     /**
@@ -180,7 +194,7 @@ public class AccountCommandHandler {
 
         UUID operationId = UUID.randomUUID();
 
-        return enqueueCrossAccountOperation(
+        OperationAcceptedResponse response = enqueueCrossAccountOperation(
                 operationId,
                 AccountCommandType.LOAN_DISBURSEMENT,
                 masterAccount,
@@ -189,6 +203,9 @@ public class AccountCommandHandler {
                 command.getDescription() != null ? command.getDescription() : "Выдача кредита",
                 command.getCreditId()
         );
+        log.info("loanDisbursement queued: operationId={}, creditId={}, sourceAccountId={}, targetAccountId={}, sourceAmountMinor={}",
+                operationId, command.getCreditId(), masterAccount.getId(), clientAccount.getId(), amountInMinorUnits);
+        return response;
     }
 
     /**
@@ -204,7 +221,7 @@ public class AccountCommandHandler {
 
         UUID operationId = UUID.randomUUID();
 
-        return enqueueCrossAccountOperation(
+        OperationAcceptedResponse response = enqueueCrossAccountOperation(
                 operationId,
                 AccountCommandType.LOAN_REPAYMENT,
                 clientAccount,
@@ -213,6 +230,9 @@ public class AccountCommandHandler {
                 command.getDescription() != null ? command.getDescription() : "Погашение кредита",
                 command.getCreditId()
         );
+        log.info("loanRepayment queued: operationId={}, creditId={}, sourceAccountId={}, targetAccountId={}, sourceAmountMinor={}",
+                operationId, command.getCreditId(), clientAccount.getId(), masterAccount.getId(), amountInMinorUnits);
+        return response;
     }
 
     private OperationAcceptedResponse enqueueCrossAccountOperation(
@@ -224,11 +244,28 @@ public class AccountCommandHandler {
             String description,
             UUID creditId
     ) {
+        log.debug("enqueueCrossAccountOperation: operationId={}, commandType={}, sourceAccountId={}, targetAccountId={}, sourceAmountMinor={}, creditId={}",
+                operationId,
+                commandType,
+                sourceAccount.getId(),
+                targetAccount.getId(),
+                amountInMinorUnits,
+                creditId);
+
         CurrencyConversionService.ConversionQuote conversionQuote = currencyConversionService.quote(
                 amountInMinorUnits,
                 accountBalanceService.normalizeCurrency(sourceAccount),
                 accountBalanceService.normalizeCurrency(targetAccount)
         );
+
+        log.debug("conversion quote resolved: operationId={}, sourceCurrency={}, targetCurrency={}, sourceAmountMinor={}, targetAmountMinor={}, rate={}, quotedAt={}",
+                operationId,
+                accountBalanceService.normalizeCurrency(sourceAccount),
+                accountBalanceService.normalizeCurrency(targetAccount),
+                amountInMinorUnits,
+                conversionQuote.targetAmountMinor(),
+                conversionQuote.rate(),
+                conversionQuote.quotedAt());
 
         operationMessageProducer.send(OperationMessage.builder()
                 .operationId(operationId)
@@ -244,6 +281,14 @@ public class AccountCommandHandler {
                 .description(description)
                 .creditId(creditId)
                 .build());
+
+        log.debug("operation message sent: operationId={}, commandType={}, sourceAccountId={}, targetAccountId={}, sourceAmountMinor={}, targetAmountMinor={}",
+                operationId,
+                commandType,
+                sourceAccount.getId(),
+                targetAccount.getId(),
+                amountInMinorUnits,
+                conversionQuote.targetAmountMinor());
 
         return new OperationAcceptedResponse(operationId, "QUEUED");
     }

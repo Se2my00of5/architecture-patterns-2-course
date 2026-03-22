@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { creditsApi } from '../../api/credits';
 import { accountsApi } from '../../api/accounts';
+import OverduePaymentsModal from './OverduePaymentsModal';
 import './Credits.css';
 
 const Credits = () => {
@@ -15,6 +16,8 @@ const Credits = () => {
   const [rating, setRating] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [showOverdueModal, setShowOverdueModal] = useState(false);
+  const [overduePayments, setOverduePayments] = useState([]);
   
   const [selectedTariff, setSelectedTariff] = useState('');
   const [selectedAccount, setSelectedAccount] = useState('');
@@ -51,10 +54,22 @@ const Credits = () => {
     const ratingResult = await creditsApi.getClientRating(user.id);
     if (ratingResult.success) {
       setRating(ratingResult.data);
-    } else {
-      console.log('Rating not available');
     }
     
+    setLoading(false);
+  };
+
+  const handleViewOverduePayments = async () => {
+    if (!rating || rating.overduePayments === 0) return;
+    
+    setLoading(true);
+    const result = await creditsApi.getClientOverduePayments(user.id);
+    if (result.success) {
+      setOverduePayments(result.data);
+      setShowOverdueModal(true);
+    } else {
+      toast.error(result.error || 'Ошибка при загрузке просроченных платежей');
+    }
     setLoading(false);
   };
 
@@ -201,7 +216,17 @@ const Credits = () => {
                   <div className="rating-description">{getGradeText(rating.grade)}</div>
                   <div className="rating-stats">
                     <span>Всего кредитов: {rating.totalCredits}</span>
-                    <span>Просрочек: {rating.overduePayments}</span>
+                    <span 
+                      className={`overdue-stats ${rating.overduePayments === 0 ? 'zero' : ''}`}
+                      onClick={() => {
+                        if (rating.overduePayments > 0) {
+                          handleViewOverduePayments();
+                        }
+                      }}
+                    >
+                      Просрочек: {rating.overduePayments}
+                    </span>
+                    <span>Доля своевременных: {rating.onTimePaymentRate}%</span>
                   </div>
                 </div>
               </div>
@@ -267,6 +292,16 @@ const Credits = () => {
           </form>
         </div>
       </div>
+
+      {showOverdueModal && (
+        <OverduePaymentsModal
+          payments={overduePayments}
+          onClose={() => {
+            setShowOverdueModal(false);
+            setOverduePayments([]);
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { oauthService } from '../../api/oauthService';
@@ -10,9 +10,16 @@ const OAuth2Callback = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [error, setError] = useState(null);
+  const processed = useRef(false);
 
   useEffect(() => {
     const handleCallback = async () => {
+      if (processed.current) {
+        console.log('Callback already processed, skipping');
+        return;
+      }
+      processed.current = true;
+
       const params = new URLSearchParams(location.search);
       const code = params.get('code');
       const state = params.get('state');
@@ -37,7 +44,7 @@ const OAuth2Callback = () => {
         
         if (result.success) {
           login(result.user);
-          toast.success(`Добро пожаловать, ${result.user.full_name}!`);
+          toast.success(`Добро пожаловать, ${result.user.fullName}!`);
           navigate('/dashboard');
         } else {
           setError(result.error || 'Ошибка при входе');

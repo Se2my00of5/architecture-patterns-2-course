@@ -1,4 +1,4 @@
-import axios from 'axios';
+import apiClient from './client';
 
 const API_BASE_URL = 'http://localhost:1115/api/users';
 const ACCOUNTS_API_URL = 'http://localhost:1111/api';
@@ -6,11 +6,7 @@ const ACCOUNTS_API_URL = 'http://localhost:1111/api';
 export const usersApi = {
   getClients: async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/by-role?role=CLIENT`, {
-        headers: {
-          'accept': '*/*'
-        }
-      });
+      const response = await apiClient.get(`${API_BASE_URL}/by-role?role=CLIENT`);
       return { 
         success: true, 
         data: response.data,
@@ -34,20 +30,11 @@ export const usersApi = {
 
   createClient: async (login, fullName) => {
     try {
-      const response = await axios.post(
-        `${API_BASE_URL}`,
-        {
-          login,
-          fullName,
-          role: 'CLIENT'
-        },
-        {
-          headers: {
-            'accept': '*/*',
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const response = await apiClient.post(`${API_BASE_URL}`, {
+        login,
+        fullName,
+        role: 'CLIENT'
+      });
       return { 
         success: true, 
         data: response.data,
@@ -71,15 +58,7 @@ export const usersApi = {
 
   block: async (userId) => {
     try {
-      const response = await axios.patch(
-        `${API_BASE_URL}/${userId}/block`,
-        {},
-        {
-          headers: {
-            'accept': '*/*'
-          }
-        }
-      );
+      const response = await apiClient.patch(`${API_BASE_URL}/${userId}/block`);
       return { 
         success: true, 
         data: response.data,
@@ -101,17 +80,9 @@ export const usersApi = {
     }
   },
 
-   unblock: async (userId) => {
+  unblock: async (userId) => {
     try {
-      const response = await axios.patch(
-        `${API_BASE_URL}/${userId}/unblock`,
-        {},
-        {
-          headers: {
-            'accept': '*/*'
-          }
-        }
-      );
+      const response = await apiClient.patch(`${API_BASE_URL}/${userId}/unblock`);
       return { 
         success: true, 
         data: response.data,
@@ -135,11 +106,7 @@ export const usersApi = {
 
   getUserAccounts: async (userId) => {
     try {
-      const response = await axios.get(`${ACCOUNTS_API_URL}/accounts/user/${userId}`, {
-        headers: {
-          'accept': '*/*'
-        }
-      });
+      const response = await apiClient.get(`${ACCOUNTS_API_URL}/accounts/user/${userId}`);
       return { 
         success: true, 
         data: response.data,
@@ -163,11 +130,7 @@ export const usersApi = {
 
   getAccountOperations: async (accountId) => {
     try {
-      const response = await axios.get(`${ACCOUNTS_API_URL}/accounts/${accountId}/operations`, {
-        headers: {
-          'accept': '*/*'
-        }
-      });
+      const response = await apiClient.get(`${ACCOUNTS_API_URL}/accounts/${accountId}/operations`);
       return { 
         success: true, 
         data: response.data,
@@ -189,13 +152,9 @@ export const usersApi = {
     }
   },
 
-    getEmployees: async () => {
+  getEmployees: async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/by-role?role=EMPLOYEE`, {
-        headers: {
-          'accept': '*/*'
-        }
-      });
+      const response = await apiClient.get(`${API_BASE_URL}/by-role?role=EMPLOYEE`);
       return { 
         success: true, 
         data: response.data,
@@ -219,20 +178,11 @@ export const usersApi = {
 
   createEmployee: async (login, fullName) => {
     try {
-      const response = await axios.post(
-        `${API_BASE_URL}`,
-        {
-          login,
-          fullName,
-          role: 'EMPLOYEE'
-        },
-        {
-          headers: {
-            'accept': '*/*',
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const response = await apiClient.post(`${API_BASE_URL}`, {
+        login,
+        fullName,
+        role: 'EMPLOYEE'
+      });
       return { 
         success: true, 
         data: response.data,
@@ -253,5 +203,4 @@ export const usersApi = {
       };
     }
   }
-
 };

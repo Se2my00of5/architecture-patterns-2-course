@@ -45,8 +45,26 @@ const ClientAccounts = () => {
     });
   };
 
+  const formatCurrency = (value, currency = 'RUB') => {
+    if (value === undefined || value === null) return '0 ₽';
+    const symbols = {
+      RUB: '₽',
+      USD: '$',
+      CNY: '¥'
+    };
+    return `${Number(value).toLocaleString('ru-RU')} ${symbols[currency] || '₽'}`;
+  };
+
   const activeAccounts = accounts.filter(acc => acc.status === 'ACTIVE');
   const closedAccounts = accounts.filter(acc => acc.status !== 'ACTIVE');
+
+  if (loading) {
+    return (
+      <div className="accounts-loading">
+        <div className="loading-spinner-large"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="client-accounts">
@@ -73,7 +91,10 @@ const ClientAccounts = () => {
                     <span className="label">id:</span> {account.id}
                   </div>
                   <div className="account-balance">
-                    <span className="label">баланс:</span> {account.balance} ₽
+                    <span className="label">баланс:</span> {formatCurrency(account.balance, account.currency)}
+                  </div>
+                  <div className="account-currency">
+                    <span className="label">валюта:</span> {account.currency}
                   </div>
                   <div className="account-date">
                     <span className="label">открыт:</span> {formatDate(account.createdAt)}
@@ -103,6 +124,9 @@ const ClientAccounts = () => {
                 <div className="account-info">
                   <div className="account-id">
                     <span className="label">id:</span> {account.id}
+                  </div>
+                  <div className="account-currency">
+                    <span className="label">валюта:</span> {account.currency}
                   </div>
                   <div className="account-date">
                     <span className="label">открыт:</span> {formatDate(account.createdAt)}

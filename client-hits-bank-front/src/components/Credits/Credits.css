@@ -202,3 +202,65 @@
   font-size: 0.85rem;
   margin-top: 0.25rem;
 }
+
+.rating-card {
+  background-color: #f8f9fa;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid #e9ecef;
+}
+
+.rating-header {
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.rating-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.rating-grade {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: white;
+}
+
+.rating-info {
+  flex: 1;
+}
+
+.rating-score {
+  font-size: 0.9rem;
+  color: #495057;
+  margin-bottom: 0.25rem;
+}
+
+.rating-description {
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin-bottom: 0.25rem;
+}
+
+.rating-stats {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.rating-stats span {
+  background-color: #e9ecef;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
+}

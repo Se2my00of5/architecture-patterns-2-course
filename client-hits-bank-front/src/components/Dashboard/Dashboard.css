@@ -104,15 +104,6 @@
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.menu-button.open-account {
-    background-color: #346cb0;
-}
-
-.menu-button.open-account:hover:not(:disabled) {
-    background-color: #2b5a92;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
-
 .menu-button.accounts-but {
     background-color: #28a745;
 }

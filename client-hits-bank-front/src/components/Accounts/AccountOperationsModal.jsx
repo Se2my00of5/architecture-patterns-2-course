@@ -21,24 +21,34 @@ const AccountOperationsModal = ({ account, type, onClose, onSubmit }) => {
     withdraw: 'Снятие со счета'
   };
 
+  const formatCurrency = (value, currency = 'RUB') => {
+    const symbols = {
+      RUB: '₽',
+      USD: '$',
+      CNY: '¥'
+    };
+    return `${value} ${symbols[currency] || '₽'}`;
+  };
+
   return (
     <>
       <div className="modal-overlay" onClick={onClose}></div>
       <div className="modal">
         <div className="modal-title">{titles[type]}</div>
         <div className="account-info-mini">
-          Счет: {account.id}
+          <div>Счет: {account.id}</div>
+          <div>Валюта: {account.currency || 'RUB'}</div>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="modal-fields">
-            <label>Сумма</label>
+            <label>Сумма ({account.currency || 'RUB'})</label>
             <input
               type="number"
-              min="1"
+              min="0.01"
               step="0.01"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="Введите сумму"
+              placeholder={`Введите сумму в ${account.currency || 'RUB'}`}
               autoFocus
             />
           </div>

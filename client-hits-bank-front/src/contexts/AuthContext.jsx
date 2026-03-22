@@ -1,48 +1,42 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { storage } from '../utils/storage';
+import { oauthService } from '../api/oauthService';
 
 const AuthContext = createContext();
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('компонент не обернут в AuthProvider');
+    throw new Error('useAuth must be used within AuthProvider');
   }
   return context;
 };
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const savedAuth = storage.getAuthData();
-    if (savedAuth) {
-      setUser(savedAuth);
-      setIsAuthenticated(true);
+    const savedUser = localStorage.getItem('user');
+    const tokens = localStorage.getItem('oauth_tokens');
+    
+    if (savedUser && tokens) {
+      const userData = JSON.parse(savedUser);
+      setUser(userData);
     }
     setIsLoading(false);
   }, []);
 
   const login = (userData) => {
-    setUser({
-      id: userData.id,
-      login: userData.login,
-      fullName: userData.fullName
-    });
-    setIsAuthenticated(true);
+    setUser(userData);
   };
 
   const logout = () => {
-    storage.clearAuthData();
-    setUser(null);
-    setIsAuthenticated(false);
+    oauthService.logout();
   };
 
   const value = {
     user,
-    isAuthenticated,
+    isAuthenticated: !!user,
     isLoading,
     login,
     logout

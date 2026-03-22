@@ -42,38 +42,40 @@ export const oauthService = {
     return { codeVerifier, codeChallenge };
   },
   
-  async handleCallback(code, state) {
-    const savedState = sessionStorage.getItem('oauth_state');
-    const codeVerifier = sessionStorage.getItem('oauth_code_verifier');
-
-    if (state !== savedState) {
-      throw new Error('State mismatch');
-    }
-    
-    if (!codeVerifier) {
-      throw new Error('Code verifier not found');
-    }
-    
-    const params = new URLSearchParams({
-      grant_type: 'authorization_code',
-      code: code,
-      redirect_uri: REDIRECT_URI,
-      client_id: 'frontend-app',
-      client_secret: 'frontend-app-secret',
-      code_verifier: codeVerifier
-    });
-    
-    const response = await fetch(`${USER_SERVICE_URL}/oauth2/token`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: params
-    });
-    
-    const data = await response.json();
+async handleCallback(code, state) {
+  const processedCode = sessionStorage.getItem('processed_code');
+  if (processedCode === code) {
+    console.log('Code already processed, skipping');
+    return { success: false, error: 'Code already used' };
+  }
+  
+  const codeVerifier = sessionStorage.getItem('oauth_code_verifier');
+  
+  const params = new URLSearchParams({
+    grant_type: 'authorization_code',
+    code: code,
+    redirect_uri: REDIRECT_URI,
+    client_id: 'frontend-app',
+    client_secret: 'frontend-app-secret'
+  });
+  
+  if (codeVerifier) {
+    params.append('code_verifier', codeVerifier);
+  }
+  
+  const response = await fetch(`${USER_SERVICE_URL}/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: params
+  });
+  
+  const data = await response.json();
     
     if (response.ok) {
+      sessionStorage.setItem('processed_code', code);
+
       const tokens = {
         accessToken: data.access_token,
         refreshToken: data.refresh_token,
@@ -91,17 +93,19 @@ export const oauthService = {
         throw new Error('Доступ только для сотрудников банка');
       }
       
-      localStorage.setItem('user', JSON.stringify({
+      const user = {
         id: userInfo.user_id,
         login: userInfo.login,
         fullName: userInfo.full_name,
         roles: userInfo.roles
-      }));
+      };
+      
+      localStorage.setItem('user', JSON.stringify(user));
       
       sessionStorage.removeItem('oauth_state');
       sessionStorage.removeItem('oauth_code_verifier');
       
-      return { success: true, user: userInfo };
+      return { success: true, user: user };
     }
     
     return { success: false, error: data.error_description || data.message };

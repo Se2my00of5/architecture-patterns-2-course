@@ -13,9 +13,9 @@ namespace CreditService.Controllers
     public class CreditController : ControllerBase
     {
         private readonly Services.CreditService _creditService;
-        private readonly IAuthorizationService _authz;
+        private readonly Services.IAuthorizationService _authz;
 
-        public CreditController(Services.CreditService creditService, IAuthorizationService authz)
+        public CreditController(Services.CreditService creditService, Services.IAuthorizationService authz)
         {
             _creditService = creditService;
             _authz = authz;

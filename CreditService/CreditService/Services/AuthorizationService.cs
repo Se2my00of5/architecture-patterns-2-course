@@ -59,16 +59,16 @@ namespace CreditService.Services
             if (!response.IsSuccessStatusCode) return false;
 
             var user = await response.Content.ReadFromJsonAsync<UserResponse>();
-            return user?.Roles?.Contains("EMPLOYEE") == true;
+            return user?.roles?.Contains("EMPLOYEE") == true;
         }
 
         public class UserResponse
         {
-            public Guid Id { get; set; }
-            public string Login { get; set; } = "";
-            public string FullName { get; set; } = "";
-            public List<string> Roles { get; set; } = new();
-            public bool IsBlocked { get; set; }
+            public Guid id { get; set; }
+            public string login { get; set; } = "";
+            public string fullName { get; set; } = "";
+            public List<string> roles { get; set; } = new();
+            public bool isBlocked { get; set; }
         }
     }
 }

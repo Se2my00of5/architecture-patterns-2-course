@@ -23,7 +23,7 @@ namespace CreditService.Controllers
 
         // Управление тарифами
         [HttpPost("tariffs")]
-        [Authorize(Policy = "EmployeeOnly")]
+        //[Authorize(Policy = "EmployeeOnly")]
         [SwaggerOperation(
             Summary = "Создание нового тарифа",
             Description = "Создает новый кредитный тариф"
@@ -62,7 +62,7 @@ namespace CreditService.Controllers
         }
 
         [HttpDelete("tariffs/{id}")]
-        [Authorize(Policy = "EmployeeOnly")]
+        //[Authorize(Policy = "EmployeeOnly")]
         [SwaggerOperation(Summary = "Удаление тарифа")]
         public async Task<IActionResult> DeactivateTariff(Guid id)
         {
@@ -100,7 +100,7 @@ namespace CreditService.Controllers
 
         // Информация о кредитах
         [HttpGet]
-        [Authorize(Policy = "EmployeeOnly")]
+        //[Authorize(Policy = "EmployeeOnly")]
         [SwaggerOperation(Summary = "Получение информации о всех кредитах")]
         public async Task<ActionResult<IEnumerable<Credit>>> GetAllCredits()
         {

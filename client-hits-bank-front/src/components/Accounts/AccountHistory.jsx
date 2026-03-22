@@ -1,19 +1,48 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { accountsApi } from '../../api/accounts';
+import { websocketService } from '../../api/websocketService';
 import './AccountHistory.css';
 
 const AccountHistory = () => {
+  const { user } = useAuth();
   const { accountId } = useParams();
   const navigate = useNavigate();
   const [operations, setOperations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [accountInfo, setAccountInfo] = useState(null);
+  const [currency, setCurrency] = useState('RUB');
 
   useEffect(() => {
+    loadAccountInfo();
     loadOperations();
+    
+    websocketService.connect();
+    websocketService.subscribeToAccount(accountId, (operation) => {
+      console.log('New operation received:', operation);
+      setOperations(prevOperations => [operation, ...prevOperations]);
+      toast.info(`Новая операция: ${operation.type} на сумму ${operation.amount}`);
+    });
+    
+    return () => {
+      websocketService.unsubscribeFromAccount(accountId);
+    };
   }, [accountId]);
+
+  const loadAccountInfo = async () => {
+    try {
+      const result = await accountsApi.getUserAccounts(user.id);
+      if (result.success) {
+        const account = result.data.find(acc => acc.id === accountId);
+        if (account) {
+          setCurrency(account.currency);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading account info:', error);
+    }
+  };
 
   const loadOperations = async () => {
     setLoading(true);
@@ -22,13 +51,6 @@ const AccountHistory = () => {
       
       if (result.success) {
         setOperations(result.data);
-        if (result.data.length > 0) {
-          setAccountInfo({
-            id: result.data[0].accountId
-          });
-        } else {
-          setAccountInfo({ id: accountId });
-        }
       } else {
         toast.error(result.error || 'Ошибка при загрузке истории операций');
       }
@@ -50,18 +72,30 @@ const AccountHistory = () => {
     });
   };
 
+  const formatCurrency = (amount, currencyCode = currency) => {
+    if (amount === undefined || amount === null) return '0 ₽';
+    const symbols = {
+      RUB: '₽',
+      USD: '$',
+      CNY: '¥'
+    };
+    return `${Number(amount).toLocaleString('ru-RU')} ${symbols[currencyCode] || '₽'}`;
+  };
+
   const getOperationTypeText = (type) => {
     switch (type) {
       case 'DEPOSIT':
         return 'Пополнение вклада';
       case 'WITHDRAWAL':
         return 'Снятие со вклада';
-      
+      case 'TRANSFER_OUT':
+        return 'Исходящий перевод';
+      case 'TRANSFER_IN':
+        return 'Входящий перевод';
       case 'LOAN_DISBURSEMENT':
         return 'Выдача кредита';
       case 'LOAN_REPAYMENT':
         return 'Погашение кредита';
-      
       default:
         return type;
     }
@@ -73,12 +107,14 @@ const AccountHistory = () => {
         return 'deposit';
       case 'WITHDRAWAL':
         return 'withdrawal';
-      
+      case 'TRANSFER_OUT':
+        return 'transfer-out';
+      case 'TRANSFER_IN':
+        return 'transfer-in';
       case 'LOAN_DISBURSEMENT':
         return 'loan-disbursement';
       case 'LOAN_REPAYMENT':
         return 'loan-repayment';
-      
       default:
         return '';
     }
@@ -87,15 +123,25 @@ const AccountHistory = () => {
   const getOperationAmountPrefix = (type) => {
     switch (type) {
       case 'DEPOSIT':
+      case 'TRANSFER_IN':
       case 'LOAN_DISBURSEMENT':
         return '+';
       case 'WITHDRAWAL':
+      case 'TRANSFER_OUT':
       case 'LOAN_REPAYMENT':
         return '-';
       default:
         return '';
     }
   };
+
+  if (loading) {
+    return (
+      <div className="history-loading">
+        <div className="loading-spinner-large"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="account-history">
@@ -105,11 +151,9 @@ const AccountHistory = () => {
             ← Назад к счетам
           </button>
         </div>
-        <h2>
-          История операций по счету
-        </h2>
+        <h2>История операций по счету</h2>
         <div className="account-id-display">
-          {accountInfo?.id}
+          {accountId}
         </div>
       </div>
 
@@ -129,7 +173,7 @@ const AccountHistory = () => {
                 </div>
                 <div className="operation-amount">
                   Сумма: <span className={getOperationTypeClass(operation.type)}>
-                    {getOperationAmountPrefix(operation.type)}{operation.amount} ₽
+                    {getOperationAmountPrefix(operation.type)}{formatCurrency(operation.amount)}
                   </span>
                 </div>
                 {operation.description && (

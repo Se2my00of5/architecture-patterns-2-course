@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { accountsApi } from '../../api/accounts';
 import AccountOperationsModal from './AccountOperationsModal';
+import CreateAccountModal from './CreateAccountModal';
+import TransferModal from './TransferModal';
 import './Accounts.css';
 
 const Accounts = () => {
@@ -12,7 +14,8 @@ const Accounts = () => {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedAccount, setSelectedAccount] = useState(null);
-  const [modalType, setModalType] = useState(null); 
+  const [modalType, setModalType] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
     loadAccounts();
@@ -29,6 +32,18 @@ const Accounts = () => {
     setLoading(false);
   };
 
+  const handleCreateAccount = async (currency) => {
+    const result = await accountsApi.createAccount(user.id, currency);
+    
+    if (result.success) {
+      toast.success(`Счет в ${currency} успешно создан!`);
+      setShowCreateModal(false);
+      loadAccounts();
+    } else {
+      toast.error(result.error || 'Ошибка при создании счета');
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return '—';
     const date = new Date(dateString);
@@ -41,6 +56,16 @@ const Accounts = () => {
     });
   };
 
+  const formatCurrency = (value, currency = 'RUB') => {
+    if (value === undefined || value === null) return '0 ₽';
+    const symbols = {
+      RUB: '₽',
+      USD: '$',
+      CNY: '¥'
+    };
+    return `${Number(value).toLocaleString('ru-RU')} ${symbols[currency] || '₽'}`;
+  };
+
   const handleOperation = async (accountId, amount, description) => {
     let result;
     
@@ -51,16 +76,25 @@ const Accounts = () => {
     }
 
     if (result.success) {
-      toast.success('Операция успешна');
-      setAccounts(prevAccounts => 
-        prevAccounts.map(acc => 
-          acc.id === accountId ? result.data : acc
-        )
-      );
+      toast.success('Операция поставлена в очередь');
+      loadAccounts();
       setSelectedAccount(null);
       setModalType(null);
     } else {
       toast.error(result.error || 'Ошибка при выполнении операции');
+    }
+  };
+
+  const handleTransfer = async (sourceAccountId, targetAccountId, amount, description) => {
+    const result = await accountsApi.transfer(sourceAccountId, targetAccountId, amount, description);
+    
+    if (result.success) {
+      toast.success('Перевод поставлен в очередь');
+      loadAccounts();
+      setSelectedAccount(null);
+      setModalType(null);
+    } else {
+      toast.error(result.error || 'Ошибка при выполнении перевода');
     }
   };
 
@@ -69,12 +103,7 @@ const Accounts = () => {
     
     if (result.success) {
       toast.success('Счет успешно закрыт');
-      setAccounts(prevAccounts => 
-        prevAccounts.map(acc => 
-          acc.id === accountId ? { ...acc, status: 'CLOSED', closedAt: new Date().toISOString() } : acc
-        )
-      );
-      setSelectedAccount(null);
+      loadAccounts();
     } else {
       toast.error(result.error || 'Ошибка при закрытии счета');
     }
@@ -87,13 +116,26 @@ const Accounts = () => {
   const activeAccounts = accounts.filter(acc => acc.status === 'ACTIVE');
   const closedAccounts = accounts.filter(acc => acc.status !== 'ACTIVE');
 
+  if (loading) {
+    return (
+      <div className="accounts-loading">
+        <div className="loading-spinner-large"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="accounts">
       <div className="accounts-header">
         <h2>Ваши счета</h2>
-        <button className="back-button" onClick={() => navigate('/dashboard')}>
-          ← Назад
-        </button>
+        <div className="header-buttons">
+          <button className="create-account-button" onClick={() => setShowCreateModal(true)}>
+            + Открыть счет
+          </button>
+          <button className="back-button" onClick={() => navigate('/dashboard')}>
+            ← Назад
+          </button>
+        </div>
       </div>
 
       {activeAccounts.length > 0 && (
@@ -107,7 +149,10 @@ const Accounts = () => {
                     <span className="label">id:</span> {account.id}
                   </div>
                   <div className="account-balance">
-                    <span className="label">balance:</span> {account.balance} ₽
+                    <span className="label">balance:</span> {formatCurrency(account.balance, account.currency)}
+                  </div>
+                  <div className="account-currency">
+                    <span className="label">валюта:</span> {account.currency}
                   </div>
                   <div className="account-date">
                     <span className="label">открыт:</span> {formatDate(account.createdAt)}
@@ -122,6 +167,15 @@ const Accounts = () => {
                     История
                   </button>
                   <div className="amount-actions">
+                    <button 
+                      className="action-button transfer"
+                      onClick={() => {
+                        setSelectedAccount(account);
+                        setModalType('transfer');
+                      }}
+                    >
+                      Перевод
+                    </button>
                     <button 
                       className="action-button withdraw"
                       onClick={() => {
@@ -164,6 +218,9 @@ const Accounts = () => {
                   <div className="account-id">
                     <span className="label">id:</span> {account.id}
                   </div>
+                  <div className="account-currency">
+                    <span className="label">валюта:</span> {account.currency}
+                  </div>
                   <div className="account-date">
                     <span className="label">открыт:</span> {formatDate(account.createdAt)}
                   </div>
@@ -191,7 +248,19 @@ const Accounts = () => {
         </div>
       )}
 
-      {selectedAccount && modalType && (
+      {selectedAccount && modalType === 'transfer' && (
+        <TransferModal
+          account={selectedAccount}
+          accounts={accounts}
+          onClose={() => {
+            setSelectedAccount(null);
+            setModalType(null);
+          }}
+          onSubmit={handleTransfer}
+        />
+      )}
+
+      {selectedAccount && (modalType === 'deposit' || modalType === 'withdraw') && (
         <AccountOperationsModal
           account={selectedAccount}
           type={modalType}
@@ -200,6 +269,13 @@ const Accounts = () => {
             setModalType(null);
           }}
           onSubmit={handleOperation}
+        />
+      )}
+
+      {showCreateModal && (
+        <CreateAccountModal
+          onClose={() => setShowCreateModal(false)}
+          onSubmit={handleCreateAccount}
         />
       )}
     </div>

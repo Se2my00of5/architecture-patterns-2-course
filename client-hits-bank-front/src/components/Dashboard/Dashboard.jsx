@@ -14,24 +14,6 @@ const Dashboard = () => {
     logout();
   };
 
-  const handleOpenAccount = async () => {
-    setIsCreatingAccount(true);
-    
-    try {
-      const result = await accountsApi.createAccount(user.id);
-      
-      if (result.success && result.status === 201) {
-        toast.success('Счет успешно создан!');
-      } else {
-        toast.error('Ошибка при создании счета');
-      }
-    } catch (error) {
-      toast.error('Ошибка при создании счета');
-    } finally {
-      setIsCreatingAccount(false);
-    }
-  };
-
   const handleYourAccounts = () => {
     navigate('/accounts');
   };
@@ -66,17 +48,6 @@ const Dashboard = () => {
         <h2>Личный кабинет клиента</h2>
         
         <div className="menu-grid">
-          <button 
-            className="menu-button open-account"
-            onClick={handleOpenAccount}
-            disabled={isCreatingAccount}
-          >
-            <span>
-              Открыть счет
-              {isCreatingAccount && <span className="loading-spinner"></span>}
-            </span>
-          </button>
-
           <button 
             className="menu-button accounts-but"
             onClick={handleYourAccounts}

@@ -5,7 +5,7 @@ const DEFAULT_CONFIG = {
   coreBaseUrl: 'http://localhost:1111',
   clientId: 'frontend-app',
   clientSecret: 'frontend-app-secret',
-  redirectUri: 'http://localhost:3000/login/oauth2/code/frontend-app',
+  redirectUri: 'http://localhost:3002/login/oauth2/code/frontend-app',
   scope: 'api'
 };
 

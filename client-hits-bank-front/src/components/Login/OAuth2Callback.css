@@ -1,0 +1,39 @@
+.oauth-callback {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #f6f7f9;
+  text-align: center;
+}
+
+.oauth-callback h2 {
+  margin-top: 1rem;
+  color: #333;
+}
+
+.oauth-callback p {
+  margin-top: 0.5rem;
+  color: #6c757d;
+}
+
+.oauth-callback.error{
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid #e9ecef;
+  border-radius: 50%;
+  border-top-color: #346cb0;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

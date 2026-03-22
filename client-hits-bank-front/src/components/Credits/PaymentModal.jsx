@@ -16,8 +16,10 @@ const PaymentModal = ({ credit, onClose, onSubmit }) => {
   const loadAccounts = async () => {
     const result = await accountsApi.getUserAccounts(user.id);
     if (result.success) {
-      const activeAccounts = result.data.filter(acc => acc.status === 'ACTIVE');
-      setAccounts(activeAccounts);
+      const rubAccounts = result.data.filter(
+        acc => acc.status === 'ACTIVE' && acc.currency === 'RUB'
+      );
+      setAccounts(rubAccounts);
     }
     setLoading(false);
   };
@@ -75,7 +77,7 @@ const PaymentModal = ({ credit, onClose, onSubmit }) => {
               ))}
             </select>
             {accounts.length === 0 && (
-              <p className="warning-text">Нет активных счетов для списания</p>
+              <p className="warning-text">Нет рублевых счетов для списания</p>
             )}
           </div>
 

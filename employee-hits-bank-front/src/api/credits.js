@@ -1,8 +1,18 @@
 import apiClient from './client';
 
+/**
+ * @typedef {import('../types/api').Tariff} Tariff
+ * @typedef {import('../types/api').CreateTariffRequest} CreateTariffRequest
+ * @typedef {import('../types/api').Credit} Credit
+ * @typedef {import('../types/api').CreditRating} CreditRating
+ */
+
 const CREDITS_API_URL = 'http://localhost:5005/api/Credit';
 
 export const creditsApi = {
+  /**
+   * @returns {Promise<{ success: boolean; data: Tariff[]; error?: string; status?: number }>}
+   */
   getAllTariffs: async () => {
     try {
       const response = await apiClient.get(`${CREDITS_API_URL}/tariffs?onlyActive=false`);
@@ -27,6 +37,11 @@ export const creditsApi = {
     }
   },
 
+  /**
+   * @param {string} name
+   * @param {number} interestRate
+   * @returns {Promise<{ success: boolean; data?: Tariff; error?: string; status?: number }>}
+   */
   createTariff: async (name, interestRate) => {
     try {
       const response = await apiClient.post(`${CREDITS_API_URL}/tariffs`, {
@@ -54,6 +69,10 @@ export const creditsApi = {
     }
   },
 
+  /**
+   * @param {string} clientId
+   * @returns {Promise<{ success: boolean; data: Credit[]; error?: string; status?: number }>}
+   */
   getClientCredits: async (clientId) => {
     try {
       const response = await apiClient.get(`${CREDITS_API_URL}/client/${clientId}`);
@@ -78,6 +97,10 @@ export const creditsApi = {
     }
   },
 
+  /**
+   * @param {string} clientId
+   * @returns {Promise<{ success: boolean; data?: CreditRating; error?: string; status?: number }>}
+   */
   getClientRating: async (clientId) => {
     try {
       const response = await apiClient.get(`${CREDITS_API_URL}/client/${clientId}/rating`);

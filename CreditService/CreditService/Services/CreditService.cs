@@ -105,13 +105,13 @@ namespace CreditService.Services
             _context.Credits.Add(credit);
             await _context.SaveChangesAsync();
 
-            // Отправляем запрос в ядро для создания счета и зачисления средств
             await NotifyCoreAboutCreditIssuance(credit);
 
             var cred = new CreditResponseDto
             {
                 Id = credit.Id,
                 ClientId = credit.ClientId,
+                AccountId = credit.AccountId,
                 TariffId = credit.TariffId,
                 Amount = credit.Amount,
                 RemainingAmount = credit.Amount,

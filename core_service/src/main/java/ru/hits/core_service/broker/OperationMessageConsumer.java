@@ -37,6 +37,7 @@ public class OperationMessageConsumer {
     private final AccountLookupService accountLookupService;
     private final AccountBalanceService accountBalanceService;
     private final OperationWsPublisher operationWsPublisher;
+    private final OperationCreatedEventProducer operationCreatedEventProducer;
 
     @KafkaListener(topics = "${app.kafka.topics.account-operations}")
     @Transactional
@@ -92,6 +93,7 @@ public class OperationMessageConsumer {
                 account.getBalance(),
                 operation.getId());
         operationWsPublisher.publishCreated(operation);
+        operationCreatedEventProducer.send(operation);
     }
 
     private void handleWithdraw(OperationMessage message) {
@@ -114,6 +116,7 @@ public class OperationMessageConsumer {
                 account.getBalance(),
                 operation.getId());
         operationWsPublisher.publishCreated(operation);
+        operationCreatedEventProducer.send(operation);
     }
 
     private void handleTransfer(OperationMessage message) {
@@ -152,6 +155,8 @@ public class OperationMessageConsumer {
 
         operationWsPublisher.publishCreated(outOperation);
         operationWsPublisher.publishCreated(inOperation);
+        operationCreatedEventProducer.send(outOperation);
+        operationCreatedEventProducer.send(inOperation);
     }
 
     private void handleLoanDisbursement(OperationMessage message) {
@@ -175,6 +180,7 @@ public class OperationMessageConsumer {
                 targetAmount,
                 operation.getId());
         operationWsPublisher.publishCreated(operation);
+        operationCreatedEventProducer.send(operation);
     }
 
     private void handleLoanRepayment(OperationMessage message) {
@@ -196,6 +202,7 @@ public class OperationMessageConsumer {
                 message.getAmount(),
                 operation.getId());
         operationWsPublisher.publishCreated(operation);
+        operationCreatedEventProducer.send(operation);
     }
 
     private MovementResult executeTwoAccountMovementOrThrow(OperationMessage message) {

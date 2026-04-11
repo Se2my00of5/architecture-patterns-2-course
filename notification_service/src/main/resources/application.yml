@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: notification_service
+  datasource:
+    url: jdbc:postgresql://localhost:2226/notification_service_db
+    username: postgres
+    password: postgres
+  jpa:
+    hibernate:
+      ddl-auto: update
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9094}
+
+server:
+  port: 1116
+
+security:
+  jwt:
+    public-key: ${JWT_PUBLIC_KEY:}
+
+firebase:
+  enabled: ${FIREBASE_ENABLED:false}
+  credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
+
+app:
+  kafka:
+    topics:
+      operation-created: ${KAFKA_OPERATION_CREATED_TOPIC:operation-created}

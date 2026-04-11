@@ -37,3 +37,4 @@ app:
   kafka:
     topics:
       account-operations: ${KAFKA_ACCOUNT_OPERATIONS_TOPIC:account-operations}
+      operation-created: ${KAFKA_OPERATION_CREATED_TOPIC:operation-created}

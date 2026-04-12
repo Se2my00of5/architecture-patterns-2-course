@@ -18,6 +18,7 @@ sourceSets {
     main {
         java {
             srcDirs += ['../shared_security/src/main/java']
+            srcDirs += ['../shared_resilience/src/main/java']
         }
     }
 }
@@ -39,7 +40,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
+    implementation 'org.springframework:spring-aspects'
     implementation 'org.springframework.kafka:spring-kafka'
+    implementation 'org.springframework.retry:spring-retry:2.0.12'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6'
 
     implementation 'org.mapstruct:mapstruct:1.6.3'

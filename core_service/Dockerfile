@@ -4,6 +4,7 @@ WORKDIR /workspace
 
 COPY core_service/build.gradle core_service/settings.gradle ./core_service/
 COPY shared_security ./shared_security
+COPY shared_resilience/src ./shared_resilience/src
 
 WORKDIR /workspace/core_service
 

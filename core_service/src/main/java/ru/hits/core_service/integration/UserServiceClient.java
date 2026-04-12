@@ -6,11 +6,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Recover;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
+import ru.hits.core_service.exception.IntegrationUnavailableException;
 
 import java.time.Instant;
 import java.util.Map;
@@ -22,6 +26,7 @@ import java.util.UUID;
 public class UserServiceClient {
 
     private final RestClient.Builder restClientBuilder;
+    private final IntegrationCircuitBreaker circuitBreaker;
 
     @Value("${integration.user-service.base-url}")
     private String userServiceBaseUrl;
@@ -35,20 +40,38 @@ public class UserServiceClient {
     private volatile String cachedAccessToken;
     private volatile Instant accessTokenExpiresAt = Instant.EPOCH;
 
+    @Retryable(
+            retryFor = IllegalStateException.class,
+            maxAttemptsExpression = "${integration.resilience.retry.max-attempts:3}",
+            backoff = @Backoff(
+                    delayExpression = "${integration.resilience.retry.delay-ms:300}",
+                    multiplierExpression = "${integration.resilience.retry.multiplier:2.0}"
+            )
+    )
     public boolean userExists(UUID userId) {
-        String accessToken = getServiceAccessToken();
-        RestClient restClient = restClientBuilder.baseUrl(userServiceBaseUrl).build();
+        return circuitBreaker.execute("user-service", () -> {
+            String accessToken = getServiceAccessToken();
+            RestClient restClient = restClientBuilder.baseUrl(userServiceBaseUrl).build();
 
-        try {
-            restClient.get()
-                    .uri("/api/users/{userId}", userId)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                    .retrieve()
-                    .toBodilessEntity();
-            return true;
-        } catch (HttpClientErrorException.NotFound notFound) {
-            return false;
-        }
+            try {
+                restClient.get()
+                        .uri("/api/users/{userId}", userId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .retrieve()
+                        .toBodilessEntity();
+                return true;
+            } catch (HttpClientErrorException.NotFound notFound) {
+                return false;
+            } catch (Exception ex) {
+                throw new IllegalStateException("Ошибка вызова user-service", ex);
+            }
+        });
+    }
+
+    @Recover
+    public boolean recover(IllegalStateException ex, UUID userId) {
+        log.error("User-service is unavailable after retries for userId={}", userId, ex);
+        throw new IntegrationUnavailableException("Сервис пользователей временно недоступен");
     }
 
     private synchronized String getServiceAccessToken() {

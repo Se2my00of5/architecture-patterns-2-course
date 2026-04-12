@@ -29,7 +29,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(SimulatedServiceFailureException.class)
     public ResponseEntity<ErrorResponse> handleSimulatedFailure(SimulatedServiceFailureException ex) {
         log.warn("Simulated service failure: {}", ex.getMessage());
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

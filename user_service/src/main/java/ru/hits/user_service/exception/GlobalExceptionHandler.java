@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -87,6 +88,18 @@ public class GlobalExceptionHandler {
         }
 
         return buildResponse("Некорректный параметр запроса");
+    }
+
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleMissingRequestHeader(MissingRequestHeaderException ex) {
+        String message = "Отсутствует обязательный заголовок: " + ex.getHeaderName();
+        if ("Idempotency-Key".equalsIgnoreCase(ex.getHeaderName())) {
+            message = "Отсутствует обязательный заголовок Idempotency-Key";
+        }
+
+        log.debug("Missing request header: {}", ex.getHeaderName());
+        return buildResponse(message);
     }
 
     @ExceptionHandler(Exception.class)

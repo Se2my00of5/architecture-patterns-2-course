@@ -20,6 +20,7 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 COPY --from=builder /workspace/notification_service/build/libs/*.jar app.jar
+COPY notification_service/service-account.json service-account.json
 
 EXPOSE 1116
 

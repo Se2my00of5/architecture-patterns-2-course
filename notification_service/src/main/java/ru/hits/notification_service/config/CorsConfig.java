@@ -1,4 +1,4 @@
-package ru.hits.core_service.config;
+package ru.hits.notification_service.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -7,7 +7,7 @@ const State = {
 class CircuitBreaker {
   constructor(options = {}) {
     this.failureThreshold = options.failureThreshold || 5;
-    this.timeout = options.timeout || 30000;
+    this.timeout = options.timeout || 10000;
     this.successThreshold = options.successThreshold || 3;
     
     this.state = State.CLOSED;
@@ -72,7 +72,7 @@ class CircuitBreaker {
     this.state = State.CLOSED;
     this.failureCount = 0;
     this.successCount = 0;
-    console.log('Circuit breaker: CLOSED -恢复正常');
+    console.log('Circuit breaker: CLOSED');
   }
 
   getState() {
@@ -80,6 +80,6 @@ class CircuitBreaker {
   }
 }
 
-export const userServiceCB = new CircuitBreaker({ failureThreshold: 3, timeout: 30000 });
-export const coreServiceCB = new CircuitBreaker({ failureThreshold: 3, timeout: 30000 });
-export const creditServiceCB = new CircuitBreaker({ failureThreshold: 3, timeout: 30000 });
+export const userServiceCB = new CircuitBreaker({ failureThreshold: 3, timeout: 10000 });
+export const coreServiceCB = new CircuitBreaker({ failureThreshold: 3, timeout: 10000 });
+export const creditServiceCB = new CircuitBreaker({ failureThreshold: 3, timeout: 10000 });

@@ -32,6 +32,20 @@ public class GlobalExceptionHandler {
         return buildResponse(ex.getMessage());
     }
 
+    @ExceptionHandler(IdempotencyConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleIdempotencyConflict(IdempotencyConflictException ex) {
+        log.warn("Idempotency conflict: {}", ex.getMessage());
+        return buildResponse(ex.getMessage());
+    }
+
+    @ExceptionHandler(SimulatedServiceFailureException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public ErrorResponse handleSimulatedFailure(SimulatedServiceFailureException ex) {
+        log.warn("Simulated service failure: {}", ex.getMessage());
+        return buildResponse(ex.getMessage());
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleValidation(MethodArgumentNotValidException ex) {

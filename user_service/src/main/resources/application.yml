@@ -29,4 +29,10 @@ oauth2:
         client-id: ${SERVICE_CLIENT_ID:service-client}
         client-secret: ${SERVICE_CLIENT_SECRET:service-client-secret}
 
+app:
+  instability:
+    enabled: ${APP_INSTABILITY_ENABLED:true}
+    default-error-rate: ${APP_DEFAULT_ERROR_RATE:0.3}
+    even-minute-error-rate: ${APP_EVEN_MINUTE_ERROR_RATE:0.7}
+
 

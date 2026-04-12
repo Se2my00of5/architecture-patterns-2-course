@@ -3,6 +3,10 @@ import { oauthService } from './oauthService';
 import { withRetry } from './retry';
 import { userServiceCB, coreServiceCB, creditServiceCB } from './circuitBreaker';
 
+const generateIdempotencyKey = () => {
+  return crypto.randomUUID();
+};
+
 const apiClient = axios.create();
 
 function getCircuitBreaker(url) {
@@ -18,6 +22,10 @@ apiClient.interceptors.request.use(async (config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
   
+  if (['post', 'put', 'patch', 'delete'].includes(config.method?.toLowerCase())) {
+    config.headers['Idempotency-Key'] = generateIdempotencyKey();
+  }
+
   config.timeout = 10000;
   
   return config;
@@ -51,20 +59,20 @@ export async function request(config) {
   const circuitBreaker = getCircuitBreaker(config.url);
   
   const makeRequest = () => apiClient(config);
+
+  const requestWithCB = circuitBreaker 
+    ? () => circuitBreaker.call(makeRequest)
+    : makeRequest;
   
-  const requestWithRetry = () => withRetry(makeRequest, {
+  return withRetry(requestWithCB, {
     maxRetries: 3,
     initialDelay: 1000,
     shouldRetry: (error) => {
-      return error.response?.status >= 500 || error.code === 'ERR_NETWORK';
+      return error.response?.status >= 500 || 
+             error.code === 'ERR_NETWORK' ||
+             error.message?.includes('Circuit breaker is OPEN');
     }
   });
-  
-  if (circuitBreaker) {
-    return circuitBreaker.call(requestWithRetry);
-  }
-  
-  return requestWithRetry();
 }
 
 apiClient.get = (url, config) => request({ ...config, method: 'get', url });

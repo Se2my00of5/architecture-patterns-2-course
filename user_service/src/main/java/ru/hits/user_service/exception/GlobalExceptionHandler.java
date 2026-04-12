@@ -42,7 +42,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(SimulatedServiceFailureException.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
     public ErrorResponse handleSimulatedFailure(SimulatedServiceFailureException ex) {
         log.warn("Simulated service failure: {}", ex.getMessage());
         return buildResponse(ex.getMessage());

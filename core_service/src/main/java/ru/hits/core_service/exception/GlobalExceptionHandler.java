@@ -49,7 +49,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(SimulatedServiceFailureException.class)
     public ResponseEntity<ErrorResponse> handleSimulatedFailure(SimulatedServiceFailureException ex) {
         log.debug("Simulated service failure: {}", ex.getMessage());
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
     }
 
     @ExceptionHandler({PessimisticLockingFailureException.class, CannotAcquireLockException.class})

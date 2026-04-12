@@ -39,7 +39,7 @@ integration:
       failure-rate-threshold: ${INTEGRATION_CB_FAILURE_RATE_THRESHOLD:70}
       minimum-number-of-calls: ${INTEGRATION_CB_MIN_CALLS:10}
       sliding-window-size: ${INTEGRATION_CB_WINDOW_SIZE:20}
-      open-state-seconds: ${INTEGRATION_CB_OPEN_SECONDS:30}
+      open-state-seconds: ${INTEGRATION_CB_OPEN_SECONDS:10}
 
 app:
   bank:

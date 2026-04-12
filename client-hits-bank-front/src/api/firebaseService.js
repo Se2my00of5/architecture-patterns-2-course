@@ -1,7 +1,9 @@
 import { initializeApp } from 'firebase/app';
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+import { getMessaging, getToken, onMessage, deleteToken } from 'firebase/messaging';
 import { toast } from 'react-toastify';
 import notificationClient from './notificationClient';
+import { withRetry } from './retry';
+import { userServiceCB } from './circuitBreaker';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBP7SCInRd5kBpL01vFt8YEmAbWHbqdlAk",
@@ -25,6 +27,11 @@ class FirebaseService {
       return false;
     }
 
+    if (!('serviceWorker' in navigator)) {
+      console.warn('Service Worker not supported');
+      return false;
+    }
+
     try {
       const app = initializeApp(firebaseConfig);
       this.messaging = getMessaging(app);
@@ -44,62 +51,91 @@ class FirebaseService {
     }
   }
 
-  async requestPermission() {
-    if (!this.isSupported) return null;
-
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        this.token = await getToken(this.messaging, {
-          vapidKey: process.env.REACT_APP_FIREBASE_VAPID_KEY,
-        });
-        console.log('FCM Token:', this.token);
-        return this.token;
-      }
-      return null;
-    } catch (error) {
-      console.error('Permission error:', error);
-      return null;
-    }
-  }
-
-  async registerToken(token) {
-    try {
-      await notificationClient.post('/api/push/tokens', { token });
-      console.log('Token registered');
-      return true;
-    } catch (error) {
-      console.error('Token registration failed:', error);
-      return false;
-    }
-  }
-
-  async unregisterToken(token) {
-    try {
-      await notificationClient.delete('/api/push/tokens', { data: { token } });
-      console.log('Token unregistered');
-      return true;
-    } catch (error) {
-      console.error('Token unregister failed:', error);
-      return false;
-    }
-  }
-
-  async setup() {
+  async enable() {
     const inited = await this.init();
     if (!inited) return false;
     
-    const token = await this.requestPermission();
-    if (token) {
-      await this.registerToken(token);
+    try {
+      if (!navigator.serviceWorker.controller) {
+        await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        await navigator.serviceWorker.ready;
+      }
+
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        toast.error('Разрешение не получено');
+        return false;
+      }
+
+      this.token = await getToken(this.messaging, {
+        vapidKey: process.env.REACT_APP_FIREBASE_VAPID_KEY,
+      });
+      console.log('FCM Token:', this.token);
+
+      const makeRequest = () => notificationClient.post('/api/push/tokens', { token: this.token });
+      
+      const requestWithCB = () => userServiceCB.call(makeRequest);
+      
+      await withRetry(requestWithCB, {
+        maxRetries: 3,
+        initialDelay: 1000,
+        shouldRetry: (error) => {
+          return error.response?.status >= 500 || error.code === 'ERR_NETWORK';
+        }
+      });
+      
+      localStorage.setItem('fcm_token', this.token);
       return true;
+    } catch (error) {
+      console.error('Enable failed:', error);
+      toast.error('Не удалось включить уведомления');
+      return false;
     }
-    return false;
+  }
+
+  async disable() {
+    if (!this.token) {
+      this.token = localStorage.getItem('fcm_token');
+    }
+    
+    if (this.token && this.messaging) {
+      try {
+        const unregisterWithRetry = () => withRetry(
+          () => notificationClient.delete('/api/push/tokens', { data: { token: this.token } }),
+          {
+            maxRetries: 3,
+            initialDelay: 1000,
+            shouldRetry: (error) => {
+              return error.response?.status >= 500 || error.code === 'ERR_NETWORK';
+            }
+          }
+        );
+
+        await userServiceCB.call(unregisterWithRetry);
+        
+        if (this.messaging) {
+          try {
+            await deleteToken(this.messaging);
+          } catch (e) {
+            console.warn('Failed to delete Firebase token:', e);
+          }
+        }
+        
+        localStorage.removeItem('fcm_token');
+        this.token = null;
+        return true;
+      } catch (error) {
+        console.error('Disable failed:', error);
+        toast.error('Не удалось отключить уведомления');
+        return false;
+      }
+    }
+    return true;
   }
 
   async cleanup() {
     if (this.token) {
-      await this.unregisterToken(this.token);
+      await this.disable();
     }
   }
 }

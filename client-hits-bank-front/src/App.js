@@ -4,7 +4,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { firebaseService } from './api/firebaseService';
-import NotificationPermission from './components/Notifications/NotificationPermission';
+import NotificationToggle from './components/Notifications/NotificationToggle';
 import Login from './components/Login/Login';
 import OAuth2Callback from './components/Login/OAuth2Callback';
 import Dashboard from './components/Dashboard/Dashboard';
@@ -19,7 +19,6 @@ function App() {
     <Router>
       <AuthProvider>
         <AppContent />
-        <NotificationPermission />
         <ToastContainer 
           position="bottom-right"
           autoClose={3000}
@@ -39,13 +38,7 @@ function App() {
 
 const AppContent = () => {
   const { user, isLoading } = useAuth();
-
-  useEffect(() => {
-    if (user) {
-      firebaseService.init();
-    }
-  }, [user]);
-
+  
   if (isLoading) {
     return (
       <div className="app-loading">

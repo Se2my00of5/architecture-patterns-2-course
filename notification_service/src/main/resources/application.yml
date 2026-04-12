@@ -23,6 +23,10 @@ firebase:
   credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
 
 app:
+  instability:
+    enabled: ${APP_INSTABILITY_ENABLED:true}
+    default-error-rate: ${APP_DEFAULT_ERROR_RATE:0.3}
+    even-minute-error-rate: ${APP_EVEN_MINUTE_ERROR_RATE:0.7}
   kafka:
     topics:
       operation-created: ${KAFKA_OPERATION_CREATED_TOPIC:operation-created}

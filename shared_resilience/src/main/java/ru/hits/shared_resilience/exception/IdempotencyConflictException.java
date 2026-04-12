@@ -1,4 +1,4 @@
-package ru.hits.user_service.exception;
+package ru.hits.shared_resilience.exception;
 
 public class IdempotencyConflictException extends RuntimeException {
 

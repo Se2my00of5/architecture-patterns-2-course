@@ -17,11 +17,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import jakarta.servlet.http.HttpServletRequest;
+import ru.hits.shared_resilience.jwt.JwtScopeResolver;
 import ru.hits.user_service.dto.request.CreateUserRequest;
 import ru.hits.user_service.dto.response.UserResponse;
 import ru.hits.user_service.handler.command.UserCommandHandler;
 import ru.hits.user_service.service.IdempotencyService;
-import ru.hits.user_service.service.IdempotencyScopeResolver;
 
 import java.util.UUID;
 
@@ -33,7 +33,6 @@ public class UserCommandController {
 
     private final UserCommandHandler commandHandler;
     private final IdempotencyService idempotencyService;
-    private final IdempotencyScopeResolver scopeResolver;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -45,7 +44,7 @@ public class UserCommandController {
             HttpServletRequest request
     ) {
         return idempotencyService.execute(
-            scopeResolver.resolveUserScope(jwt, "anonymous"),
+            JwtScopeResolver.resolveUserScope(jwt, "anonymous"),
                 idempotencyKey,
                 request.getMethod(),
                 request.getRequestURI(),
@@ -65,7 +64,7 @@ public class UserCommandController {
             HttpServletRequest request
     ) {
         idempotencyService.executeVoid(
-            scopeResolver.resolveUserScope(jwt, "anonymous"),
+            JwtScopeResolver.resolveUserScope(jwt, "anonymous"),
                 idempotencyKey,
                 request.getMethod(),
                 request.getRequestURI(),
@@ -84,7 +83,7 @@ public class UserCommandController {
             HttpServletRequest request
     ) {
         idempotencyService.executeVoid(
-            scopeResolver.resolveUserScope(jwt, "anonymous"),
+            JwtScopeResolver.resolveUserScope(jwt, "anonymous"),
                 idempotencyKey,
                 request.getMethod(),
                 request.getRequestURI(),
@@ -103,7 +102,7 @@ public class UserCommandController {
             HttpServletRequest request
     ) {
         idempotencyService.executeVoid(
-                scopeResolver.resolveUserScope(jwt, "anonymous"),
+                JwtScopeResolver.resolveUserScope(jwt, "anonymous"),
                 idempotencyKey,
                 request.getMethod(),
                 request.getRequestURI(),

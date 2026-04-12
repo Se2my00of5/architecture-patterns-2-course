@@ -18,11 +18,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
+import ru.hits.shared_resilience.jwt.JwtScopeResolver;
 import ru.hits.user_service.dto.request.LogoutRequest;
 import ru.hits.user_service.dto.request.RegisterRequest;
 import ru.hits.user_service.handler.command.AuthCommandHandler;
 import ru.hits.user_service.service.IdempotencyService;
-import ru.hits.user_service.service.IdempotencyScopeResolver;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -32,7 +32,6 @@ public class AuthCommandController {
 
     private final AuthCommandHandler authCommandHandler;
     private final IdempotencyService idempotencyService;
-    private final IdempotencyScopeResolver scopeResolver;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -63,7 +62,7 @@ public class AuthCommandController {
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse
     ) {
-        String scope = scopeResolver.resolveUserScope(jwt, "logout:anonymous");
+        String scope = JwtScopeResolver.resolveUserScope(jwt, "logout:anonymous");
         idempotencyService.executeVoid(
                 scope,
                 idempotencyKey,

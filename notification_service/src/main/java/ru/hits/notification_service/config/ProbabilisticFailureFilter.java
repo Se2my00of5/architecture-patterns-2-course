@@ -1,4 +1,4 @@
-package ru.hits.user_service.config;
+package ru.hits.notification_service.config;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

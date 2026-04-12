@@ -4,6 +4,7 @@ WORKDIR /workspace
 
 COPY notification_service/build.gradle notification_service/settings.gradle ./notification_service/
 COPY shared_security/src ./shared_security/src
+COPY shared_resilience/src ./shared_resilience/src
 
 WORKDIR /workspace/notification_service
 

@@ -1,12 +1,13 @@
-package ru.hits.user_service.service;
+package ru.hits.shared_resilience.jwt;
 
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.stereotype.Component;
 
-@Component
-public class IdempotencyScopeResolver {
+public final class JwtScopeResolver {
 
-    public String resolveUserScope(Jwt jwt, String fallbackScope) {
+    private JwtScopeResolver() {
+    }
+
+    public static String resolveUserScope(Jwt jwt, String fallbackScope) {
         if (jwt == null) {
             return fallbackScope;
         }

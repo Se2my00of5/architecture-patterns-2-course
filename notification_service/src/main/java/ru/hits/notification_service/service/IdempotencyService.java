@@ -1,14 +1,14 @@
-package ru.hits.user_service.service;
+package ru.hits.notification_service.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.hits.notification_service.entity.IdempotencyRecordEntity;
+import ru.hits.notification_service.repository.IdempotencyRecordRepository;
 import ru.hits.shared_resilience.idempotency.IdempotencyExecutor;
 import ru.hits.shared_resilience.idempotency.IdempotencyRecordData;
 import ru.hits.shared_resilience.idempotency.IdempotencyRecordStore;
-import ru.hits.user_service.entity.IdempotencyRecordEntity;
-import ru.hits.user_service.repository.IdempotencyRecordRepository;
 
 import java.util.Optional;
 import java.util.function.Supplier;

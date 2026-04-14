@@ -1,3 +1,4 @@
+using CreditService;
 using CreditService.Data;
 using CreditService.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -141,8 +142,8 @@ builder.Services.AddHostedService<PaymentProcessingService>();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<TokenService, TokenService>();
 builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
+builder.Services.AddScoped<IdempotencyService, IdempotencyService>();
 
-// Добавить политики
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("EmployeeOnly", policy =>
@@ -193,6 +194,8 @@ if (app.Environment.IsDevelopment())
 app.UseCors("AllowAllOrigins");
 
 //---
+
+app.UseMiddleware<UnstableServiceSimulationMiddleware>();
 
 app.UseHttpsRedirection();
 

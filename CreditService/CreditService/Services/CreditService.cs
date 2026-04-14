@@ -25,6 +25,12 @@ namespace CreditService.Services
         // Управление тарифами
         public async Task<CreditTariff> CreateTariffAsync(CreateTariffDto dto)
         {
+
+            var existing = await _context.CreditTariffs.FirstOrDefaultAsync(t => t.IdempotencyKey == dto.IdempotencyKey);
+            if (existing != null)
+                return existing;
+
+
             var tariff = new CreditTariff
             {
                 Id = Guid.NewGuid(),
@@ -32,6 +38,7 @@ namespace CreditService.Services
                 InterestRate = dto.InterestRate,
                 CreatedAt = DateTime.UtcNow,
                 IsActive = true
+                IdempotencyKey = dto.IdempotencyKey
             };
 
             _context.CreditTariffs.Add(tariff);
@@ -73,6 +80,23 @@ namespace CreditService.Services
         // Работа с кредитами
         public async Task<CreditResponseDto> ApplyForCreditAsync(ApplyForCreditDto dto)
         {
+            var existing = await _context.Credits.FirstOrDefaultAsync(c => c.IdempotencyKey == dto.IdempotencyKey);
+            if (existing != null)
+            {
+                return new CreditResponseDto
+                {
+                    Id = existing.Id,
+                    ClientId = existing.ClientId,
+                    AccountId = existing.AccountId,
+                    TariffId = existing.TariffId,
+                    Amount = existing.Amount,
+                    RemainingAmount = existing.RemainingAmount,
+                    MonthlyPayment = existing.MonthlyPayment,
+                    StartDate = existing.StartDate
+                };
+            }
+
+
 
             // Получаем тариф
             var tariff = await _context.CreditTariffs.FindAsync(dto.TariffId);
@@ -99,7 +123,8 @@ namespace CreditService.Services
                 MonthlyPayment = monthlyPayment,
                 StartDate = DateTime.UtcNow,
                 Status = CreditStatus.Active,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                IdempotencyKey = dto.IdempotencyKey
             };
 
             _context.Credits.Add(credit);
@@ -181,6 +206,13 @@ namespace CreditService.Services
 
         public async Task<CreditPaymentDto> MakePaymentAsync(MakePaymentDto dto)
         {
+            var existing = await _context.CreditPayments.FirstOrDefaultAsync(p => p.IdempotencyKey == dto.IdempotencyKey);
+            if (existing != null)
+            {
+                return MapToCreditPaymentDto(existing);
+            }
+
+
             var credit = await _context.Credits
                 .Include(c => c.Payments)
                 .FirstOrDefaultAsync(c => c.Id == dto.CreditId);
@@ -202,6 +234,7 @@ namespace CreditService.Services
                 PaymentDate = DateTime.UtcNow,
                 DueDate = DateTime.UtcNow.AddDays(30),
                 Status = PaymentStatus.Pending
+                IdempotencyKey = dto.IdempotencyKey
             };
 
             var result = await NotifyCoreAboutPayment(dto.AccountId, credit.Id, payment.Amount);
@@ -240,62 +273,6 @@ namespace CreditService.Services
             return MapToCreditPaymentDto(payment);
         }
 
-        //public async Task<CreditPaymentDto> MakePaymentAsync(MakePaymentDto dto)
-        //{
-        //    var credit = await _context.Credits
-        //        .Include(c => c.Payments)
-        //        .FirstOrDefaultAsync(c => c.Id == dto.CreditId);
-
-        //    if (credit == null)
-        //    {
-        //        throw new InvalidOperationException("Credit not found");
-        //    }
-
-
-        //    // Создаем платеж
-        //    var payment = new CreditPayment
-        //    {
-        //        Id = Guid.NewGuid(),
-        //        CreditId = credit.Id,
-        //        Amount = dto.Amount,
-        //        PaymentDate = DateTime.UtcNow
-        //    };
-
-
-        //    // Отправляем запрос в ядро для списания средств
-        //    var result = await NotifyCoreAboutPayment(dto.AccountId, credit.Id, dto.Amount);
-
-        //    if (result)
-        //    {
-        //        credit.RemainingAmount -= dto.Amount;
-
-        //        if (credit.RemainingAmount <= 0)
-        //        {
-        //            credit.RemainingAmount = 0;
-        //            credit.Status = CreditStatus.Paid;
-        //            credit.EndDate = DateTime.UtcNow;
-        //        }
-
-        //        _context.CreditPayments.Add(payment);
-        //        await _context.SaveChangesAsync();
-        //    }
-        //    else
-        //    {
-        //        credit.Status = CreditStatus.Overdue;
-        //        await _context.SaveChangesAsync();
-        //    }
-
-
-        //    var paymentDto = new CreditPaymentDto
-        //    {
-        //        Id = payment.Id,
-        //        CreditId = payment.CreditId,
-        //        Amount = payment.Amount,
-        //        PaymentDate = payment.PaymentDate
-        //    };
-
-        //    return paymentDto;
-        //}
 
         public async Task<IEnumerable<CreditPaymentDto>> GetCreditPaymentsAsync(Guid creditId)
         {
@@ -357,33 +334,6 @@ namespace CreditService.Services
 
         }
 
-        // Вспомогательные методы для взаимодействия с другими сервисами
-
-        //private async Task NotifyCoreAboutCreditIssuance(Credit credit)
-        //{
-        //    var token = await _tokenService.GetServiceTokenAsync();
-
-        //    var request = new
-        //    {
-        //        creditId = credit.Id,
-        //        amount = credit.Amount
-        //    };
-
-        //    _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        //    string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-disbursement", credit.AccountId);
-
-        //    // Отправляем запрос и получаем ответ
-        //    var response = await _httpClient.PostAsJsonAsync(url, request);
-
-        //    var responseBody = await response.Content.ReadAsStringAsync();
-
-        //    if (response.IsSuccessStatusCode)
-        //    {
-        //        _logger.LogInformation($"Core service успешно обработал выдачу кредита {credit.Id}. Ответ: {responseBody}");
-
-        //    }
-        //}
         private async Task NotifyCoreAboutCreditIssuance(Credit credit)
         {
             try
@@ -436,32 +386,6 @@ namespace CreditService.Services
             }
         }
 
-
-        //private async Task<bool> NotifyCoreAboutPayment(Guid accountId, Guid id, decimal amount_)
-        //{
-        //    var token = await _tokenService.GetServiceTokenAsync();
-
-        //    var request = new
-        //    {
-        //        creditId = id,
-        //        amount = amount_
-        //    };
-
-        //    _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        //    string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-repayment", accountId);
-        //    var response = await _httpClient.PostAsJsonAsync(url, request);
-
-        //    var responseBody = await response.Content.ReadAsStringAsync();
-
-        //    if (response.IsSuccessStatusCode)
-        //    {
-        //        return true;
-
-        //    }
-        //    return false;
-
-        //}
         private async Task<bool> NotifyCoreAboutPayment(Guid accountId, Guid id, decimal amount_)
         {
             var token = await _tokenService.GetServiceTokenAsync();

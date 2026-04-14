@@ -20,5 +20,7 @@ namespace CreditService.Models.DTOs
         [Required]
         [Range(1, 60)]
         public int TermInMonths { get; set; }
+
+        public string IdempotencyKey { get; set; }
     }
 }

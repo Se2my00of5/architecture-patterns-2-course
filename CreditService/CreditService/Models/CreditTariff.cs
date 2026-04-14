@@ -9,6 +9,8 @@
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 
+        public string IdempotencyKey { get; set; }
+
         public ICollection<Credit> Credits { get; set; } = new List<Credit>();
     }
 }

@@ -11,5 +11,7 @@ namespace CreditService.Models.DTOs
         [Required]
         [Range(0.01, 100.0)]
         public decimal InterestRate { get; set; }
+
+        public string IdempotencyKey { get; set; }
     }
 }

@@ -1,8 +1,10 @@
-﻿using CreditService.Models;
+﻿using CreditService.CreditService;
+using CreditService.Models;
 using CreditService.Models.DTOs;
 using CreditService.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace CreditService.Controllers
@@ -10,20 +12,24 @@ namespace CreditService.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
+    [Idempotency]
     public class CreditController : ControllerBase
     {
         private readonly Services.CreditService _creditService;
         private readonly Services.IAuthorizationService _authz;
+        private readonly IdempotencyService _idempotencyService;
+        private readonly IMemoryCache _memoryCache; 
 
-        public CreditController(Services.CreditService creditService, Services.IAuthorizationService authz)
+        public CreditController(Services.CreditService creditService, Services.IAuthorizationService authz, IdempotencyService idempotencyService, IMemoryCache memoryCache = null)
         {
             _creditService = creditService;
             _authz = authz;
+            _idempotencyService = idempotencyService;
+            _memoryCache = memoryCache;
         }
 
         // Управление тарифами
         [HttpPost("tariffs")]
-        //[Authorize(Policy = "EmployeeOnly")]
         [SwaggerOperation(
             Summary = "Создание нового тарифа",
             Description = "Создает новый кредитный тариф"
@@ -62,7 +68,6 @@ namespace CreditService.Controllers
         }
 
         [HttpDelete("tariffs/{id}")]
-        //[Authorize(Policy = "EmployeeOnly")]
         [SwaggerOperation(Summary = "Удаление тарифа")]
         public async Task<IActionResult> DeactivateTariff(Guid id)
         {
@@ -73,30 +78,6 @@ namespace CreditService.Controllers
             return NoContent();
         }
 
-        // Заявки на кредит
-        //[HttpPost("apply")]
-        //[SwaggerOperation(Summary = "Взятие кредита")]
-        //public async Task<ActionResult<Credit>> ApplyForCredit([FromBody] ApplyForCreditDto dto)
-        //{
-        //    try
-        //    {
-        //        var userId = User.FindFirst("sub")?.Value;
-
-        //        if (userId != dto.ClientId.ToString())
-        //            return Forbid();
-
-        //        var credit = await _creditService.ApplyForCreditAsync(dto);
-        //        return StatusCode(201, credit);
-        //    }
-        //    catch (InvalidOperationException ex)
-        //    {
-        //        return BadRequest();
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return StatusCode(500);
-        //    }
-        //}
         [HttpPost("apply")]
         public async Task<ActionResult<Credit>> ApplyForCredit([FromBody] ApplyForCreditDto dto)
         {
@@ -135,7 +116,6 @@ namespace CreditService.Controllers
 
         // Информация о кредитах
         [HttpGet]
-        //[Authorize(Policy = "EmployeeOnly")]
         [SwaggerOperation(Summary = "Получение информации о всех кредитах")]
         public async Task<ActionResult<IEnumerable<Credit>>> GetAllCredits()
         {
@@ -149,9 +129,6 @@ namespace CreditService.Controllers
         {
             var userId = User.FindFirst("user_id")?.Value;
 
-            //if (!await _authz.CanViewCredit(userId, id))
-            //    return Forbid();
-
             var credit = await _creditService.GetCreditByIdAsync(id);
             if (credit == null)
                 return NotFound();
@@ -164,9 +141,6 @@ namespace CreditService.Controllers
         public async Task<ActionResult<IEnumerable<Credit>>> GetClientCredits(Guid clientId)
         {
             var userId = User.FindFirst("user_id")?.Value;
-
-            //if (!await _authz.CanViewClientCredits(userId, clientId))
-            //    return Forbid();
 
             var credits = await _creditService.GetClientCreditsAsync(clientId);
             return Ok(credits);

@@ -13,5 +13,7 @@ namespace CreditService.Models.DTOs
         [Range(1, double.MaxValue)]
         public decimal Amount { get; set; }
 
+        public string IdempotencyKey { get; set; }
+
     }
 }

@@ -16,6 +16,8 @@ namespace CreditService.Data
         public DbSet<CreditTariff> CreditTariffs { get; set; }
         public DbSet<CreditPayment> CreditPayments { get; set; }
 
+        public DbSet<IdempotentRequest> IdempotentRequests { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

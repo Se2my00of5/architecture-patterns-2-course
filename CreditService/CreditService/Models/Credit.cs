@@ -15,6 +15,8 @@
         public CreditStatus Status { get; set; }
         public DateTime CreatedAt { get; set; }
 
+        public string IdempotencyKey { get; set; }
+
         public CreditTariff Tariff { get; set; } = null!;
         public ICollection<CreditPayment> Payments { get; set; } = new List<CreditPayment>();
     }

@@ -6,6 +6,7 @@ include:
   - client-hits-bank-front/docker-compose.yml
   - employee-hits-bank-front/docker-compose.yml
   - UserPreferences/UserPreferences/docker-compose.yml
+  - MonitoringService/MonitoringService/docker-compose.yml
 
 networks:
   bank_network:

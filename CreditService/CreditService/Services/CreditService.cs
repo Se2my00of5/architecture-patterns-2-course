@@ -2,6 +2,7 @@
 using CreditService.Models;
 using CreditService.Models.DTOs;
 using Microsoft.EntityFrameworkCore;
+using Polly.CircuitBreaker;
 using System.Net.Http.Headers;
 using System.Text.Json;
 
@@ -334,17 +335,103 @@ namespace CreditService.Services
 
         }
 
+        //private async Task NotifyCoreAboutCreditIssuance(Credit credit)
+        //{
+        //    try
+        //    {
+        //        _logger.LogInformation("=== START NotifyCoreAboutCreditIssuance ===");
+        //        _logger.LogInformation("Credit ID: {CreditId}, Account ID: {AccountId}, Amount: {Amount}",
+        //            credit.Id, credit.AccountId, credit.Amount);
+
+
+
+        //        var token = await _tokenService.GetServiceTokenAsync();
+        //        _logger.LogInformation("Token obtained successfully. Token prefix: {TokenPrefix}",
+        //            token?.Substring(0, Math.Min(50, token?.Length ?? 0)));
+
+        //        var request = new
+        //        {
+        //            creditId = credit.Id,
+        //            amount = credit.Amount
+        //        };
+
+        //        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        //        string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-disbursement", credit.AccountId);
+        //        _logger.LogInformation("Sending POST request to: {Url}", url);
+        //        _logger.LogInformation("Request body: {@Request}", request);
+
+        //        // Отправляем запрос и получаем ответ
+        //        var response = await _httpClient.PostAsJsonAsync(url, request);
+
+        //        var responseBody = await response.Content.ReadAsStringAsync();
+        //        _logger.LogInformation("Response status code: {StatusCode}", response.StatusCode);
+        //        _logger.LogInformation("Response body: {ResponseBody}", responseBody);
+
+        //        if (response.IsSuccessStatusCode)
+        //        {
+        //            _logger.LogInformation("Core service successfully processed credit disbursement {CreditId}. Response: {ResponseBody}",
+        //                credit.Id, responseBody);
+        //        }
+        //        else
+        //        {
+        //            _logger.LogError("Failed to notify core service about credit {CreditId}. Status: {StatusCode}, Body: {ResponseBody}",
+        //                credit.Id, response.StatusCode, responseBody);
+
+
+        //        }
+
+        //        _logger.LogInformation("=== END NotifyCoreAboutCreditIssuance ===");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Exception in NotifyCoreAboutCreditIssuance for credit {CreditId}", credit.Id);
+        //    }
+        //}
+
+        //private async Task<bool> NotifyCoreAboutPayment(Guid accountId, Guid id, decimal amount_)
+        //{
+        //    var token = await _tokenService.GetServiceTokenAsync();
+
+        //    _logger.LogInformation("Sending notification to core-service. Token prefix: {TokenPrefix}",
+        //        token?.Substring(0, Math.Min(20, token?.Length ?? 0)));
+
+        //    var request = new
+        //    {
+        //        creditId = id,
+        //        amount = amount_
+        //    };
+
+        //    _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        //    string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-repayment", accountId);
+
+        //    //  Логируем URL и заголовки
+        //    _logger.LogInformation("POST {Url}, Authorization: {Auth}",
+        //        url, _httpClient.DefaultRequestHeaders.Authorization?.ToString());
+
+        //    var response = await _httpClient.PostAsJsonAsync(url, request);
+
+        //    var responseBody = await response.Content.ReadAsStringAsync();
+
+        //    //  Логируем ответ
+        //    _logger.LogInformation("Core-service response: {StatusCode}, Body: {Body}",
+        //        response.StatusCode, responseBody);
+
+        //    if (response.IsSuccessStatusCode)
+        //    {
+        //        return true;
+        //    }
+
+        //    return false;
+        //}
         private async Task NotifyCoreAboutCreditIssuance(Credit credit)
         {
             try
             {
                 _logger.LogInformation("=== START NotifyCoreAboutCreditIssuance ===");
-                _logger.LogInformation("Credit ID: {CreditId}, Account ID: {AccountId}, Amount: {Amount}",
-                    credit.Id, credit.AccountId, credit.Amount);
 
                 var token = await _tokenService.GetServiceTokenAsync();
-                _logger.LogInformation("Token obtained successfully. Token prefix: {TokenPrefix}",
-                    token?.Substring(0, Math.Min(50, token?.Length ?? 0)));
 
                 var request = new
                 {
@@ -355,72 +442,69 @@ namespace CreditService.Services
                 _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
                 string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-disbursement", credit.AccountId);
-                _logger.LogInformation("Sending POST request to: {Url}", url);
-                _logger.LogInformation("Request body: {@Request}", request);
 
-                // Отправляем запрос и получаем ответ
                 var response = await _httpClient.PostAsJsonAsync(url, request);
-
                 var responseBody = await response.Content.ReadAsStringAsync();
-                _logger.LogInformation("Response status code: {StatusCode}", response.StatusCode);
-                _logger.LogInformation("Response body: {ResponseBody}", responseBody);
 
                 if (response.IsSuccessStatusCode)
                 {
-                    _logger.LogInformation("Core service successfully processed credit disbursement {CreditId}. Response: {ResponseBody}",
-                        credit.Id, responseBody);
+                    _logger.LogInformation("Core service successfully processed credit disbursement {CreditId}", credit.Id);
                 }
                 else
                 {
                     _logger.LogError("Failed to notify core service about credit {CreditId}. Status: {StatusCode}, Body: {ResponseBody}",
                         credit.Id, response.StatusCode, responseBody);
-
-
+                    throw new HttpRequestException($"Core service error: {response.StatusCode}");
                 }
-
-                _logger.LogInformation("=== END NotifyCoreAboutCreditIssuance ===");
+            }
+            catch (BrokenCircuitException ex)
+            {
+                _logger.LogError(ex, "Core service UNAVAILABLE (Circuit Breaker OPEN) for credit {CreditId}", credit.Id);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Exception in NotifyCoreAboutCreditIssuance for credit {CreditId}", credit.Id);
+                throw;
             }
         }
 
-        private async Task<bool> NotifyCoreAboutPayment(Guid accountId, Guid id, decimal amount_)
+        private async Task<bool> NotifyCoreAboutPayment(Guid accountId, Guid id, decimal amount)
         {
-            var token = await _tokenService.GetServiceTokenAsync();
-
-            _logger.LogInformation("Sending notification to core-service. Token prefix: {TokenPrefix}",
-                token?.Substring(0, Math.Min(20, token?.Length ?? 0)));
-
-            var request = new
+            try
             {
-                creditId = id,
-                amount = amount_
-            };
+                var token = await _tokenService.GetServiceTokenAsync();
 
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                var request = new
+                {
+                    creditId = id,
+                    amount = amount
+                };
 
-            string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-repayment", accountId);
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-            //  Логируем URL и заголовки
-            _logger.LogInformation("POST {Url}, Authorization: {Auth}",
-                url, _httpClient.DefaultRequestHeaders.Authorization?.ToString());
+                string url = string.Format("http://core-service-backend:1111/api/accounts/{0}/loan-repayment", accountId);
 
-            var response = await _httpClient.PostAsJsonAsync(url, request);
+                var response = await _httpClient.PostAsJsonAsync(url, request);
+                var responseBody = await response.Content.ReadAsStringAsync();
 
-            var responseBody = await response.Content.ReadAsStringAsync();
+                if (response.IsSuccessStatusCode)
+                {
+                    return true;
+                }
 
-            //  Логируем ответ
-            _logger.LogInformation("Core-service response: {StatusCode}, Body: {Body}",
-                response.StatusCode, responseBody);
-
-            if (response.IsSuccessStatusCode)
-            {
-                return true;
+                _logger.LogError("Payment notification failed: {StatusCode}, {Body}", response.StatusCode, responseBody);
+                throw new HttpRequestException($"Core service error: {response.StatusCode}");
             }
-
-            return false;
+            catch (BrokenCircuitException ex)
+            {
+                _logger.LogError(ex, "Circuit Breaker OPEN - Core service unavailable for payment CreditId: {CreditId}", id);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception in NotifyCoreAboutPayment for credit {CreditId}", id);
+                throw;
+            }
         }
 
 

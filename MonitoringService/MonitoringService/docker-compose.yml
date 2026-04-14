@@ -1,0 +1,32 @@
+﻿version: '3.8'
+
+services:
+  monitoring-service:
+    build: .
+    env_file:
+      - ../../.env
+    ports:
+      - "5003:5003"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5003;
+      - ConnectionStrings__DefaultConnection=Host=monitoring-db;Database=MonitoringDb;Username=postgres;Password=postgres
+    depends_on:
+      - monitoring-db
+    networks:
+      - bank_network 
+
+  monitoring-db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: MonitoringDb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - monitoring-data:/var/lib/postgresql/data
+    networks:
+      - bank_network 
+
+volumes:
+  monitoring-data:
+

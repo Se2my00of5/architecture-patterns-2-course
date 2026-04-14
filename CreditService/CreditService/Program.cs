@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Polly;
 using System.Net;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -129,7 +130,21 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddHttpClient("CoreService", client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["Services:Core"] ?? "http://localhost:1111");
-});
+})
+.AddStandardResilienceHandler(options =>
+ {
+     options.Retry.MaxRetryAttempts = 3;
+     options.Retry.Delay = TimeSpan.FromSeconds(2);
+     options.Retry.BackoffType = DelayBackoffType.Exponential;
+
+     options.CircuitBreaker.FailureRatio = 0.7;   
+     options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(60);
+     options.CircuitBreaker.MinimumThroughput = 5;
+     options.CircuitBreaker.BreakDuration = TimeSpan.FromSeconds(10);
+ });
+
+
+
 builder.Services.AddHttpClient("UserService", client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["Services:Users"] ?? "http://localhost:1115");
@@ -196,6 +211,7 @@ app.UseCors("AllowAllOrigins");
 //---
 
 app.UseMiddleware<UnstableServiceSimulationMiddleware>();
+app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.UseHttpsRedirection();
 

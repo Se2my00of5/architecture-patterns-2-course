@@ -38,7 +38,7 @@ namespace CreditService.Services
                 Name = dto.Name,
                 InterestRate = dto.InterestRate,
                 CreatedAt = DateTime.UtcNow,
-                IsActive = true
+                IsActive = true,
                 IdempotencyKey = dto.IdempotencyKey
             };
 
@@ -234,7 +234,7 @@ namespace CreditService.Services
                 Amount = overduePayment?.Amount ?? dto.Amount,
                 PaymentDate = DateTime.UtcNow,
                 DueDate = DateTime.UtcNow.AddDays(30),
-                Status = PaymentStatus.Pending
+                Status = PaymentStatus.Pending,
                 IdempotencyKey = dto.IdempotencyKey
             };
 

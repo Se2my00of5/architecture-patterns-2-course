@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import ru.hits.shared_resilience.exception.IdempotencyConflictException;
+import ru.hits.shared_resilience.exception.SimulatedServiceFailureException;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -29,6 +31,20 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleLoginAlreadyExists(LoginAlreadyExistsException ex) {
         log.warn("Конфликт логина: {}", ex.getMessage());
+        return buildResponse(ex.getMessage());
+    }
+
+    @ExceptionHandler(IdempotencyConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleIdempotencyConflict(IdempotencyConflictException ex) {
+        log.warn("Idempotency conflict: {}", ex.getMessage());
+        return buildResponse(ex.getMessage());
+    }
+
+    @ExceptionHandler(SimulatedServiceFailureException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public ErrorResponse handleSimulatedFailure(SimulatedServiceFailureException ex) {
+        log.warn("Simulated service failure: {}", ex.getMessage());
         return buildResponse(ex.getMessage());
     }
 

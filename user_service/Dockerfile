@@ -4,6 +4,7 @@ WORKDIR /workspace
 
 COPY user_service/build.gradle user_service/settings.gradle ./user_service/
 COPY shared_security/src ./shared_security/src
+COPY shared_resilience/src ./shared_resilience/src
 
 WORKDIR /workspace/user_service
 

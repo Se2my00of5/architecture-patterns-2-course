@@ -11,6 +11,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import ru.hits.shared_resilience.exception.IdempotencyConflictException;
+import ru.hits.shared_resilience.exception.SimulatedServiceFailureException;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -30,6 +32,24 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleBusiness(BusinessException ex) {
         log.debug("BusinessException: {}", ex.getMessage());
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(IntegrationUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleIntegrationUnavailable(IntegrationUnavailableException ex) {
+        log.debug("Integration unavailable: {}", ex.getMessage());
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+    }
+
+    @ExceptionHandler(IdempotencyConflictException.class)
+    public ResponseEntity<ErrorResponse> handleIdempotencyConflict(IdempotencyConflictException ex) {
+        log.debug("Idempotency conflict: {}", ex.getMessage());
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(SimulatedServiceFailureException.class)
+    public ResponseEntity<ErrorResponse> handleSimulatedFailure(SimulatedServiceFailureException ex) {
+        log.debug("Simulated service failure: {}", ex.getMessage());
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
     }
 
     @ExceptionHandler({PessimisticLockingFailureException.class, CannotAcquireLockException.class})

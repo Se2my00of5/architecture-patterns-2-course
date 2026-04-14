@@ -72,4 +72,9 @@ public class KafkaTopicConfig {
     public NewTopic accountOperationsTopic(@Value("${app.kafka.topics.account-operations}") String topicName) {
         return new NewTopic(topicName, 6, (short) 1);
     }
+
+    @Bean
+    public NewTopic operationCreatedTopic(@Value("${app.kafka.topics.operation-created}") String topicName) {
+        return new NewTopic(topicName, 6, (short) 1);
+    }
 }

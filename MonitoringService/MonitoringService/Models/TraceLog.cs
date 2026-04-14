@@ -9,7 +9,6 @@
         public string? Path { get; set; } = string.Empty;
         public int StatusCode { get; set; }
         public long ElapsedMs { get; set; }
-        public bool IsError => StatusCode >= 400;
         public DateTime Timestamp { get; set; }
     }
 }

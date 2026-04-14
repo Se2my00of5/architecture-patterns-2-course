@@ -22,7 +22,7 @@ namespace MonitoringService.Controllers
             var stats = new
             {
                 total_requests = await _db.TraceLogs.CountAsync(t => t.Timestamp >= since),
-                error_requests = await _db.TraceLogs.CountAsync(t => t.Timestamp >= since && t.IsError),
+                error_requests = await _db.TraceLogs.CountAsync(t => t.Timestamp >= since && t.StatusCode >= 400),
                 error_percentage = 0.0,
                 avg_response_time = await _db.TraceLogs.Where(t => t.Timestamp >= since).AverageAsync(t => t.ElapsedMs),
                 services = await _db.TraceLogs.Where(t => t.Timestamp >= since).Select(t => t.ServiceName).Distinct().ToListAsync()
@@ -45,7 +45,6 @@ namespace MonitoringService.Controllers
                 {
                     timestamp = g.Key,
                     total = g.Count(),
-                    errors = g.Count(t => t.IsError)
                 })
                 .OrderBy(g => g.timestamp)
                 .ToListAsync();
@@ -85,10 +84,7 @@ namespace MonitoringService.Controllers
                 .Select(g => new
                 {
                     service = g.Key,
-                    total = g.Count(),
-                    errors = g.Count(t => t.IsError),
-                    error_percentage = g.Count() == 0 ? 0 : (double)g.Count(t => t.IsError) / g.Count() * 100
-                })
+                    total = g.Count(),                })
                 .ToListAsync();
 
             return Ok(data);

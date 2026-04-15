@@ -3,6 +3,10 @@ import { oauthService } from './oauthService';
 import { withRetry } from './retry';
 import { userServiceCB, coreServiceCB, creditServiceCB } from './circuitBreaker';
 
+const generateIdempotencyKey = () => {
+  return crypto.randomUUID();
+};
+
 const apiClient = axios.create();
 
 function getCircuitBreaker(url) {
@@ -18,6 +22,10 @@ apiClient.interceptors.request.use(async (config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
   
+  if (['post', 'put', 'patch', 'delete'].includes(config.method?.toLowerCase())) {
+    config.headers['Idempotency-Key'] = generateIdempotencyKey();
+  }
+
   config.timeout = 10000;
   
   return config;

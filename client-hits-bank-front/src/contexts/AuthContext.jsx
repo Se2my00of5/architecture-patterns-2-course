@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { oauthService } from '../api/oauthService';
+import { firebaseService } from '../api/firebaseService';
 
 const AuthContext = createContext();
 
@@ -32,6 +33,8 @@ export const AuthProvider = ({ children }) => {
 
  const logout = async () => {
      try {
+      await firebaseService.cleanup();
+
        const tokens = localStorage.getItem('oauth_tokens');
        let refreshToken = null;
        

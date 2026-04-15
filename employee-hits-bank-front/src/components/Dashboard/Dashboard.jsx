@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import NotificationToggle from '../Notifications/NotificationToggle';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -31,6 +32,7 @@ const Dashboard = () => {
             <span>HITS</span> БАНК
           </h1>
           <div className="user-info">
+            <NotificationToggle />
             <span>
               {user?.fullName}
             </span>

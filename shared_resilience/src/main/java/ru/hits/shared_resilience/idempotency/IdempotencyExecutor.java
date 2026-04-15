@@ -43,7 +43,9 @@ public class IdempotencyExecutor {
             Class<T> responseType,
             Supplier<T> action
     ) {
+        log.info("Executing Idempotency Executor, shared_rel");
         if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            log.error("idempotencyKey is null or empty");
             throw new IdempotencyConflictException("Отсутствует заголовок Idempotency-Key");
         }
 

@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { firebaseService } from './api/firebaseService';
+import NotificationToggle from './components/Notifications/NotificationToggle';
 import Login from './components/Login/Login';
 import OAuth2Callback from './components/Login/OAuth2Callback';
 import Dashboard from './components/Dashboard/Dashboard';

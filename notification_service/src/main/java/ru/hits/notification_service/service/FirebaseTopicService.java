@@ -31,6 +31,7 @@ public class FirebaseTopicService {
         }
         try {
             firebaseMessaging.subscribeToTopic(List.of(token), topic);
+            log.info("Subscribed token to topic successfully: topic={}", topic);
         } catch (FirebaseMessagingException ex) {
             log.warn("Failed to subscribe token to topic={}, reason={}", topic, ex.getMessage());
         }
@@ -42,6 +43,7 @@ public class FirebaseTopicService {
         }
         try {
             firebaseMessaging.unsubscribeFromTopic(List.of(token), topic);
+            log.info("Unsubscribed token from topic successfully: topic={}", topic);
         } catch (FirebaseMessagingException ex) {
             log.warn("Failed to unsubscribe token from topic={}, reason={}", topic, ex.getMessage());
         }
@@ -61,7 +63,8 @@ public class FirebaseTopicService {
         }
 
         try {
-            firebaseMessaging.send(messageBuilder.build());
+            String messageId = firebaseMessaging.send(messageBuilder.build());
+            log.info("Sent topic notification successfully: topic={}, operationId={}, messageId={}", topic, operationId, messageId);
         } catch (FirebaseMessagingException ex) {
             log.warn("Failed to send topic notification topic={}, reason={}", topic, ex.getMessage());
         }

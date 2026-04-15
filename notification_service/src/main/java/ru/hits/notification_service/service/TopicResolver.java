@@ -12,8 +12,10 @@ public final class TopicResolver {
     public static String forUser(UserRole role, UUID userId) {
         if (role == UserRole.EMPLOYEE) {
             return employeesTopic();
+        } else {
+            return clientTopic(userId);
         }
-        return "client_" + userId;
+        
     }
 
     public static String employeesTopic() {

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Monitoring Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial; margin: 20px; background: #1e1e2e; color: white; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .card { background: #2d2d3a; padding: 20px; border-radius: 10px; }
+        canvas { max-height: 300px; }
+        .stat { font-size: 32px; font-weight: bold; }
+        .error { color: #ff6b6b; }
+        .success { color: #4ecdc4; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #444; }
+        .loading { text-align: center; padding: 20px; color: #888; }
+        .error-badge { color: #ff6b6b; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Service Monitoring Dashboard</h1>
+    
+    <div class="grid">
+        <div class="card">
+            <h3>Total Requests (24h)</h3>
+            <div class="stat" id="totalRequests">-</div>
+        </div>
+        <div class="card">
+            <h3>Error Rate (24h)</h3>
+            <div class="stat error" id="errorRate">-</div>
+        </div>
+        <div class="card">
+            <h3>Avg Response Time</h3>
+            <div class="stat" id="avgResponseTime">-</div>
+        </div>
+        <!-- <div class="card">
+            <h3>Services Active</h3>
+            <div class="stat success" id="servicesCount">-</div>
+        </div> -->
+    </div>
+    
+    <div class="grid">
+        <div class="card">
+            <h3>Requests Timeline (last 24h)</h3>
+            <canvas id="timelineChart"></canvas>
+        </div>
+        <div class="card">
+            <h3>Response Time by Service</h3>
+            <canvas id="responseTimeChart"></canvas>
+        </div>
+    </div>
+    
+    <div class="card">
+        <h3>Recent Errors</h3>
+        <table id="errorsTable">
+            <thead>
+                <tr><th>Service</th><th>Error</th><th>Time</th></tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="3" class="loading">Loading errors...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h3>Error Rate by Service</h3>
+        <canvas id="errorRateChart"></canvas>
+    </div>
+    
+    <script>
+        const API_BASE = 'http://localhost:5003';
+        
+        async function fetchAPI(endpoint) {
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error(`Error fetching ${endpoint}:`, error);
+                return null;
+            }
+        }
+        
+        async function loadStats() {
+            const data = await fetchAPI('/api/dashboard/stats?hours=24');
+            if (data && data.stats) {
+                document.getElementById('totalRequests').innerText = data.stats.total_requests || 0;
+                document.getElementById('errorRate').innerText = (data.error_percentage || 0).toFixed(2) + '%';
+                document.getElementById('avgResponseTime').innerText = (data.stats.avg_response_time || 0).toFixed(0) + ' ms';
+                // document.getElementById('servicesCount').innerText = data.services ? data.services.length : 0;
+            } else {
+                document.getElementById('totalRequests').innerText = 'No data';
+                document.getElementById('errorRate').innerText = 'No data';
+                document.getElementById('avgResponseTime').innerText = 'No data';
+                // document.getElementById('servicesCount').innerText = '0';
+            }
+        }
+        
+        async function loadTimeline() {
+            const data = await fetchAPI('/api/dashboard/requests-timeline?hours=24');
+            if (data && data.length > 0) {
+                const labels = data.map(d => {
+                    const date = new Date(d.timestamp);
+                    return `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+                });
+                
+                const existingChart = Chart.getChart('timelineChart');
+                if (existingChart) existingChart.destroy();
+                
+                new Chart(document.getElementById('timelineChart'), {
+                    type: 'line',
+                    data: {
+                        labels: labels.slice(-30),
+                        datasets: [
+                            { label: 'Total Requests', data: data.slice(-30).map(d => d.total), borderColor: '#4ecdc4', backgroundColor: 'rgba(78,205,196,0.1)', fill: true },
+                            { label: 'Errors', data: data.slice(-30).map(d => d.errors), borderColor: '#ff6b6b', backgroundColor: 'rgba(255,107,107,0.1)', fill: true }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true
+                    }
+                });
+            } else {
+                document.getElementById('timelineChart').parentElement.innerHTML = '<p class="loading">No data available</p>';
+            }
+        }
+        
+        async function loadResponseTime() {
+            const data = await fetchAPI('/api/dashboard/response-time?hours=24');
+            if (data && data.length > 0) {
+                const existingChart = Chart.getChart('responseTimeChart');
+                if (existingChart) existingChart.destroy();
+                
+                new Chart(document.getElementById('responseTimeChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: data.map(d => d.service || 'Unknown'),
+                        datasets: [{ 
+                            label: 'Avg Response (ms)', 
+                            data: data.map(d => d.avg_ms || 0), 
+                            backgroundColor: '#4ecdc4',
+                            borderRadius: 5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        scales: {
+                            y: { beginAtZero: true, title: { display: true, text: 'milliseconds' } }
+                        }
+                    }
+                });
+            } else {
+                document.getElementById('responseTimeChart').parentElement.innerHTML = '<p class="loading">No data available</p>';
+            }
+        }
+        
+        async function loadErrorRate() {
+            const data = await fetchAPI('/api/dashboard/error-rate?hours=24');
+            if (data && data.length > 0) {
+                const existingChart = Chart.getChart('errorRateChart');
+                if (existingChart) existingChart.destroy();
+                
+                new Chart(document.getElementById('errorRateChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: data.map(d => d.service || 'Unknown'),
+                        datasets: [{ 
+                            label: 'Error Rate (%)', 
+                            data: data.map(d => d.error_percentage || 0), 
+                            backgroundColor: '#ff6b6b',
+                            borderRadius: 5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        scales: {
+                            y: { 
+                                beginAtZero: true, 
+                                max: 100,
+                                title: { display: true, text: 'percentage (%)' } 
+                            }
+                        }
+                    }
+                });
+            } else {
+                const chartContainer = document.getElementById('errorRateChart').parentElement;
+                if (chartContainer) {
+                    chartContainer.innerHTML = '<p class="loading">No error rate data available</p>';
+                }
+            }
+        }
+        
+        async function loadErrors() {
+            const data = await fetchAPI('/api/dashboard/recent-errors?limit=10');
+            const tbody = document.querySelector('#errorsTable tbody');
+            if (data && data.length > 0) {
+                tbody.innerHTML = data.map(e => `
+                    <tr>
+                        <td><span class="error-badge">${e.serviceName || 'Unknown'}</span></td>
+                        <td>${(e.errorMessage || 'No message').substring(0, 150)}${(e.errorMessage || '').length > 150 ? '...' : ''}</td>
+                        <td>${new Date(e.timestamp).toLocaleString()}</td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="3" class="loading">No errors recorded</td></tr>';
+            }
+        }
+        
+        async function refreshAll() {
+            await Promise.all([
+                loadStats(),
+                loadTimeline(),
+                loadResponseTime(),
+                loadErrorRate(),
+                loadErrors()
+            ]);
+        }
+        
+        refreshAll();
+        
+        setInterval(refreshAll, 10000);
+        
+        document.getElementById('serviceUrl').innerHTML = `<a href="${API_BASE}" target="_blank" style="color: #4ecdc4;">${API_BASE}</a>`;
+    </script>
+</body>
+</html>

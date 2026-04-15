@@ -1,6 +1,5 @@
-import axios from 'axios';
-
-const TELEMETRY_URL = 'http://localhost:5003/api/telemetry/trace';
+const TELEMETRY_TRACE_URL = 'http://localhost:5003/api/telemetry/trace';
+const TELEMETRY_ERROR_URL = 'http://localhost:5003/api/telemetry/error';
 
 class TelemetryClient {
   constructor() {
@@ -34,11 +33,37 @@ class TelemetryClient {
       timestamp: new Date().toISOString()
     };
 
-    fetch(TELEMETRY_URL, {
+    fetch(TELEMETRY_TRACE_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(traceData)
     }).catch(err => console.warn('Telemetry failed:', err));
+  }
+
+  /**
+   * @param {Object} data
+   * @param {string} data.traceId
+   * @param {string} data.errorMessage
+   * @param {string} data.stackTrace
+   */
+  error(data) {
+    const errorData = {
+      id: crypto.randomUUID(),
+      serviceName: this.serviceName,
+      traceId: data.traceId || crypto.randomUUID(),
+      errorMessage: data.errorMessage || 'Unknown error',
+      stackTrace: data.stackTrace || '',
+      timestamp: new Date().toISOString()
+    };
+
+    fetch(TELEMETRY_ERROR_URL, {
+      method: 'POST',
+      headers: {
+        accept: '*/*',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(errorData)
+    }).catch(err => console.warn('Telemetry error failed:', err));
   }
 }
 

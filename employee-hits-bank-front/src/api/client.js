@@ -69,6 +69,12 @@ apiClient.interceptors.response.use(
       statusCode: error.response?.status || 500,
       elapsedMs
     });
+
+    telemetry.error({
+      traceId: crypto.randomUUID(),
+      errorMessage: error.response?.data?.message || error.message || 'Request failed',
+      stackTrace: error.stack || ''
+    });
     
     return Promise.reject(error);
   }

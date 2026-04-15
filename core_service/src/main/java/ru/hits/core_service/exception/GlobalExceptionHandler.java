@@ -6,6 +6,7 @@ import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -49,7 +50,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(SimulatedServiceFailureException.class)
     public ResponseEntity<ErrorResponse> handleSimulatedFailure(SimulatedServiceFailureException ex) {
         log.debug("Simulated service failure: {}", ex.getMessage());
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
     }
 
     @ExceptionHandler({PessimisticLockingFailureException.class, CannotAcquireLockException.class})
@@ -64,6 +65,17 @@ public class GlobalExceptionHandler {
                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
                 .collect(Collectors.joining("; "));
         log.debug("Validation failed: {}", message);
+        return buildResponse(HttpStatus.BAD_REQUEST, message);
+    }
+
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ResponseEntity<ErrorResponse> handleMissingRequestHeader(MissingRequestHeaderException ex) {
+        String message = "Отсутствует обязательный заголовок: " + ex.getHeaderName();
+        if ("Idempotency-Key".equalsIgnoreCase(ex.getHeaderName())) {
+            message = "Отсутствует обязательный заголовок Idempotency-Key";
+        }
+
+        log.debug("Missing request header: {}", ex.getHeaderName());
         return buildResponse(HttpStatus.BAD_REQUEST, message);
     }
 

@@ -25,6 +25,8 @@ public class OperationCreatedConsumer {
             String body = String.format("%s: %s", event.getType(), event.getAmount());
             String operationId = event.getId() == null ? null : event.getId().toString();
 
+            log.info("Received operation created: {}", body);
+
             if (event.getUserId() != null) {
                 firebaseTopicService.sendToTopic(
                         TopicResolver.clientTopic(event.getUserId()),
@@ -33,6 +35,8 @@ public class OperationCreatedConsumer {
                         operationId
                 );
             }
+
+            log.info("New Operation client consumer - {}", body);
 
             firebaseTopicService.sendToTopic(
                     TopicResolver.employeesTopic(),

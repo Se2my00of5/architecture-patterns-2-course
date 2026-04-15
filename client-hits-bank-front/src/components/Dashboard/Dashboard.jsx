@@ -3,6 +3,8 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../contexts/AuthContext';
 import { accountsApi } from '../../api/accounts';
 import { useNavigate } from 'react-router-dom';
+import NotificationToggle from '../Notifications/NotificationToggle';
+
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -34,6 +36,7 @@ const Dashboard = () => {
             <span>HITS</span> БАНК
           </h1>
           <div className="user-info">
+            <NotificationToggle />
             <span>
               <span>{user?.fullName}</span>
             </span>

@@ -2,6 +2,7 @@ import axios from 'axios';
 import { oauthService } from './oauthService';
 import { withRetry } from './retry';
 import { userServiceCB, coreServiceCB, creditServiceCB } from './circuitBreaker';
+import { telemetry } from './telemetryClient';
 
 const generateIdempotencyKey = () => {
   return crypto.randomUUID();
@@ -28,18 +29,28 @@ apiClient.interceptors.request.use(async (config) => {
 
   config.timeout = 10000;
   
+  config.metadata = { startTime: Date.now() };
   return config;
 });
 
 apiClient.interceptors.response.use(
-  (response) => response,
-  /**
-   * @param {import('axios').AxiosError<ApiError>} error
-   */
+  (response) => {
+    const elapsedMs = Date.now() - response.config.metadata.startTime;
+    
+    telemetry.trace({
+      method: response.config.method?.toUpperCase(),
+      path: response.config.url,
+      statusCode: response.status,
+      elapsedMs
+    });
+    
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
+    const startTime = originalRequest?.metadata?.startTime || 0;
     
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest?._retry) {
       originalRequest._retry = true;
       
       const newToken = await oauthService.refreshToken();
@@ -51,6 +62,14 @@ apiClient.interceptors.response.use(
       }
     }
     
+    const elapsedMs = Date.now() - startTime;
+    telemetry.trace({
+      method: originalRequest?.method?.toUpperCase(),
+      path: originalRequest?.url,
+      statusCode: error.response?.status || 500,
+      elapsedMs
+    });
+    
     return Promise.reject(error);
   }
 );
@@ -59,20 +78,20 @@ export async function request(config) {
   const circuitBreaker = getCircuitBreaker(config.url);
   
   const makeRequest = () => apiClient(config);
-
-  const requestWithCB = circuitBreaker 
-    ? () => circuitBreaker.call(makeRequest)
-    : makeRequest;
   
-  return withRetry(requestWithCB, {
+  const requestWithRetry = () => withRetry(makeRequest, {
     maxRetries: 3,
     initialDelay: 1000,
     shouldRetry: (error) => {
-      return error.response?.status >= 500 || 
-             error.code === 'ERR_NETWORK' ||
-             error.message?.includes('Circuit breaker is OPEN');
+      return error.response?.status >= 500 || error.code === 'ERR_NETWORK';
     }
   });
+  
+  if (circuitBreaker) {
+    return circuitBreaker.call(requestWithRetry);
+  }
+  
+  return requestWithRetry();
 }
 
 apiClient.get = (url, config) => request({ ...config, method: 'get', url });
